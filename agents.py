@@ -2,10 +2,10 @@ import argparse
 import os
 import tempfile
 
-from PIL import Image
 from smolagents import CodeAgent, InferenceClientModel
 
 import filters as flt
+import judges as jdg
 
 HUGGING_FACE_TOKEN = os.environ["HUGGING_FACE_TOKEN"]
 
@@ -32,18 +32,18 @@ picture_operator = CodeAgent(
     description=(
         "Performs operations on images, such as adjusting contrast, loading images, and saving them. "
         "Give it your query as an argument, as well as the path to the image and the output path."
+        "Execute only the operations that are proposed as tools. Do not invent new methods or tools."
+        "If you need, simply ignore a specific operation."
     ),
 )
 
 art_director_model = InferenceClientModel(
-    model_id="Qwen/Qwen2-VL-72B-Instruct",
+    model_id="Qwen/Qwen3-32B",
     provider="nebius",
     token=HUGGING_FACE_TOKEN,
-    max_tokens=5000,
-    flatten_messages_as_text=False,
 )
 art_director = CodeAgent(
-    tools=[],
+    tools=[jdg.propose_operations],
     model=art_director_model,
     managed_agents=[picture_operator],
     name="ArtDirector",
@@ -93,5 +93,8 @@ if __name__ == "__main__":
     elif args.agent == "dir":
         art_director.run(
             args.query,
-            images=[Image.open(args.image_path)],
+            additional_args={
+                "image_path": args.image_path,
+                "output_path": default_output_path,
+            },
         )
