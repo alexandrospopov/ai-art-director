@@ -1,10 +1,12 @@
-import numpy as np
 import cv2
+import numpy as np
+
 
 def score_image(pil_img):
     img = np.array(pil_img.convert("L"))
     variance = cv2.Laplacian(img, cv2.CV_64F).var()
     return variance
+
 
 def evaluate_filters(images):
     scores = [score_image(img) for img in images]

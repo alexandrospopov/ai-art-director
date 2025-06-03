@@ -1,9 +1,11 @@
+import os
+import tempfile
+
 import cv2
 import numpy as np
 from PIL import Image
 from smolagents import tool
-import tempfile
-import os
+
 
 def apply_filters(image: np.ndarray) -> list[np.ndarray]:
     """Applies a series of filters to the input image.
@@ -33,6 +35,7 @@ def apply_filters(image: np.ndarray) -> list[np.ndarray]:
 
     return filtered_images
 
+
 @tool
 def adjust_contrast(image: np.ndarray, alpha: float = 1.5) -> np.ndarray:
     """Adjusts the contrast of the image.
@@ -45,6 +48,7 @@ def adjust_contrast(image: np.ndarray, alpha: float = 1.5) -> np.ndarray:
         np.ndarray: Contrast adjusted image in BGR format.
     """
     return cv2.convertScaleAbs(image, alpha=alpha, beta=0)
+
 
 @tool
 def adjust_saturation(image: np.ndarray, saturation_scale: float = 1.0) -> np.ndarray:
@@ -62,18 +66,20 @@ def adjust_saturation(image: np.ndarray, saturation_scale: float = 1.0) -> np.nd
     hsv_img[:, :, 1] = np.clip(hsv_img[:, :, 1], 0, 255)
     return cv2.cvtColor(hsv_img.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
+
 @tool
 def adjust_exposure(image: np.ndarray, beta: int = 50) -> np.ndarray:
     """Adjusts the exposure (brightness) of the image.
 
     Args:
         image (np.ndarray): Input image in BGR format.
-        beta (int, optional): Brightness control. Positive values increase brightness, negative decrease. Defaults to 50.
+        beta (int, optional): Brightness control. Positive values increase brightness, negative decrease. Defaults 50.
 
     Returns:
         np.ndarray: Exposure adjusted image in BGR format.
     """
     return cv2.convertScaleAbs(image, alpha=1.0, beta=beta)
+
 
 @tool
 def denoise_image(image: np.ndarray, h: int = 10) -> np.ndarray:
@@ -87,6 +93,7 @@ def denoise_image(image: np.ndarray, h: int = 10) -> np.ndarray:
         np.ndarray: Denoised image in BGR format.
     """
     return cv2.fastNlMeansDenoisingColored(image, None, h, h, 7, 21)
+
 
 @tool
 def crop_image(image: np.ndarray, x: int, y: int, width: int, height: int) -> np.ndarray:
@@ -102,7 +109,8 @@ def crop_image(image: np.ndarray, x: int, y: int, width: int, height: int) -> np
     Returns:
         np.ndarray: Cropped image in BGR format.
     """
-    return image[y:y+height, x:x+width]
+    return image[y : y + height, x : x + width]
+
 
 @tool
 def apply_vignette(image: np.ndarray, level: int = 2) -> np.ndarray:
@@ -116,8 +124,8 @@ def apply_vignette(image: np.ndarray, level: int = 2) -> np.ndarray:
         np.ndarray: Image with vignette effect applied in BGR format.
     """
     rows, cols = image.shape[:2]
-    kernel_x = cv2.getGaussianKernel(cols, cols/level)
-    kernel_y = cv2.getGaussianKernel(rows, rows/level)
+    kernel_x = cv2.getGaussianKernel(cols, cols / level)
+    kernel_y = cv2.getGaussianKernel(rows, rows / level)
     kernel = kernel_y * kernel_x.T
     mask = kernel / kernel.max()
     vignette = np.copy(image)
@@ -125,13 +133,14 @@ def apply_vignette(image: np.ndarray, level: int = 2) -> np.ndarray:
         vignette[:, :, i] = vignette[:, :, i] * mask
     return vignette
 
+
 @tool
 def load_image_as_bgr(image_path: str) -> np.ndarray:
     """Loads an image from path and converts it to BGR format for OpenCV.
-    
+
     Args:
         image_path (str): Path to the image file.
-        
+
     Returns:
         np.ndarray: Image in BGR format as numpy array.
     """
@@ -139,7 +148,8 @@ def load_image_as_bgr(image_path: str) -> np.ndarray:
     image_np = np.array(image)
     return cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
 
-@tool 
+
+@tool
 def save_image(image: np.ndarray, image_path: str) -> None:
     """Saves an image to the specified path.
 
@@ -153,10 +163,10 @@ def save_image(image: np.ndarray, image_path: str) -> None:
 if __name__ == "__main__":
     # Load a test image
     test_image_np = load_image_as_bgr("test_image.jpg")
-    
+
     # Apply all filters
     filtered_images = apply_filters(test_image_np)
-    
+
     # Save results
     dir = tempfile.mkdtemp()
     for i, filtered_img in enumerate(filtered_images):
