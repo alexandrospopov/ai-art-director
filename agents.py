@@ -10,7 +10,16 @@ HUGGING_FACE_TOKEN = os.environ["HUGGING_FACE_TOKEN"]
 
 model = InferenceClientModel(token=HUGGING_FACE_TOKEN)
 picture_operator = CodeAgent(
-    tools=[flt.adjust_contrast, flt.load_image_as_bgr, flt.save_image],
+    tools=[
+        flt.adjust_contrast,
+        flt.load_image_as_bgr,
+        flt.save_image,
+        flt.adjust_saturation,
+        flt.adjust_exposure,
+        flt.denoise_image,
+        flt.crop_image,
+        flt.apply_vignette,
+    ],
     model=model,
     name="PictureOperator",
     description=(
