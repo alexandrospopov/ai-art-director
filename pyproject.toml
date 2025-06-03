@@ -1,0 +1,12 @@
+[project]
+name = "ai-art-director"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "gradio>=5.32.1",
+    "numpy>=2.2.6",
+    "opencv-python>=4.11.0.86",
+    "pillow>=11.2.1",
+]
