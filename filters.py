@@ -152,7 +152,7 @@ def save_image(image: np.ndarray, image_path: str) -> None:
 
 if __name__ == "__main__":
     # Load a test image
-    test_image_np = load_image_as_bgr("toa-heftiba-Xmn-QXsVL4k-unsplash.jpg")
+    test_image_np = load_image_as_bgr("test_image.jpg")
     
     # Apply all filters
     filtered_images = apply_filters(test_image_np)
