@@ -2,13 +2,20 @@ import argparse
 import os
 import tempfile
 
+from PIL import Image
 from smolagents import CodeAgent, InferenceClientModel
 
 import filters as flt
 
 HUGGING_FACE_TOKEN = os.environ["HUGGING_FACE_TOKEN"]
 
-model = InferenceClientModel(token=HUGGING_FACE_TOKEN)
+image_operator_model = InferenceClientModel(
+    model_id="Qwen/Qwen2.5-Coder-32B-Instruct",
+    provider="nebius",
+    token=HUGGING_FACE_TOKEN,
+    max_tokens=5000,
+)
+
 picture_operator = CodeAgent(
     tools=[
         flt.adjust_contrast,
@@ -20,7 +27,7 @@ picture_operator = CodeAgent(
         flt.crop_image,
         flt.apply_vignette,
     ],
-    model=model,
+    model=image_operator_model,
     name="PictureOperator",
     description=(
         "Performs operations on images, such as adjusting contrast, loading images, and saving them. "
@@ -28,9 +35,16 @@ picture_operator = CodeAgent(
     ),
 )
 
+art_director_model = InferenceClientModel(
+    model_id="Qwen/Qwen2-VL-72B-Instruct",
+    provider="nebius",
+    token=HUGGING_FACE_TOKEN,
+    max_tokens=5000,
+    flatten_messages_as_text=False,
+)
 art_director = CodeAgent(
     tools=[],
-    model=model,
+    model=art_director_model,
     managed_agents=[picture_operator],
     name="ArtDirector",
     description=(
@@ -79,7 +93,5 @@ if __name__ == "__main__":
     elif args.agent == "dir":
         art_director.run(
             args.query,
-            additional_args={
-                "image_path": args.image_path,
-            },
+            images=[Image.open(args.image_path)],
         )
