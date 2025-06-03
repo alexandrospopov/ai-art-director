@@ -76,13 +76,13 @@ if __name__ == "__main__":
         "-i",
         type=str,
         required=False,
-        default="test_image.jpg",
+        default="small_test_image.jpg",
         help="Path to the input image.",
     )
 
     args = parser.parse_args()
+    default_output_path = os.path.join(tempfile.mkdtemp(), "output.jpg")
     if args.agent == "ops":
-        default_output_path = os.path.join(tempfile.mkdtemp(), "output.jpg")
         picture_operator.run(
             args.query,
             additional_args={
