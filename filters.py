@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 from PIL import Image
+from smolagents import tool
 
 def apply_filters(image: np.ndarray) -> list[np.ndarray]:
     """Applies a series of filters to the input image.
@@ -30,6 +31,7 @@ def apply_filters(image: np.ndarray) -> list[np.ndarray]:
 
     return filtered_images
 
+@tool
 def adjust_contrast(image: np.ndarray, alpha: float = 1.5) -> np.ndarray:
     """Adjusts the contrast of the image.
 
@@ -42,6 +44,7 @@ def adjust_contrast(image: np.ndarray, alpha: float = 1.5) -> np.ndarray:
     """
     return cv2.convertScaleAbs(image, alpha=alpha, beta=0)
 
+@tool
 def adjust_saturation(image: np.ndarray, saturation_scale: float = 1.0) -> np.ndarray:
     """Adjusts the saturation of the image.
 
@@ -57,6 +60,7 @@ def adjust_saturation(image: np.ndarray, saturation_scale: float = 1.0) -> np.nd
     hsv_img[:, :, 1] = np.clip(hsv_img[:, :, 1], 0, 255)
     return cv2.cvtColor(hsv_img.astype(np.uint8), cv2.COLOR_HSV2BGR)
 
+@tool
 def adjust_exposure(image: np.ndarray, beta: int = 50) -> np.ndarray:
     """Adjusts the exposure (brightness) of the image.
 
@@ -69,6 +73,7 @@ def adjust_exposure(image: np.ndarray, beta: int = 50) -> np.ndarray:
     """
     return cv2.convertScaleAbs(image, alpha=1.0, beta=beta)
 
+@tool
 def denoise_image(image: np.ndarray, h: int = 10) -> np.ndarray:
     """Denoises the image using Non-local Means Denoising algorithm.
 
@@ -81,6 +86,7 @@ def denoise_image(image: np.ndarray, h: int = 10) -> np.ndarray:
     """
     return cv2.fastNlMeansDenoisingColored(image, None, h, h, 7, 21)
 
+@tool
 def crop_image(image: np.ndarray, x: int, y: int, width: int, height: int) -> np.ndarray:
     """Crops the image to the specified rectangle.
 
@@ -96,6 +102,7 @@ def crop_image(image: np.ndarray, x: int, y: int, width: int, height: int) -> np
     """
     return image[y:y+height, x:x+width]
 
+@tool
 def apply_vignette(image: np.ndarray, level: int = 2) -> np.ndarray:
     """Applies a vignette effect to the image.
 
@@ -116,6 +123,7 @@ def apply_vignette(image: np.ndarray, level: int = 2) -> np.ndarray:
         vignette[:, :, i] = vignette[:, :, i] * mask
     return vignette
 
+@tool
 def load_image_as_bgr(image_path: str) -> np.ndarray:
     """Loads an image from path and converts it to BGR format for OpenCV.
     
@@ -128,6 +136,17 @@ def load_image_as_bgr(image_path: str) -> np.ndarray:
     image = Image.open(image_path)
     image_np = np.array(image)
     return cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+
+@tool 
+def save_image(image: np.ndarray, image_path: str) -> None:
+    """Saves an image to the specified path.
+
+    Args:
+        image (np.ndarray): Image to save.
+        image_path (str): Path to save the image.
+    """
+    cv2.imwrite(image_path, image)
+
 
 if __name__ == "__main__":
     # Load a test image
