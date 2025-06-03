@@ -116,12 +116,22 @@ def apply_vignette(image: np.ndarray, level: int = 2) -> np.ndarray:
         vignette[:, :, i] = vignette[:, :, i] * mask
     return vignette
 
+def load_image_as_bgr(image_path: str) -> np.ndarray:
+    """Loads an image from path and converts it to BGR format for OpenCV.
+    
+    Args:
+        image_path (str): Path to the image file.
+        
+    Returns:
+        np.ndarray: Image in BGR format as numpy array.
+    """
+    image = Image.open(image_path)
+    image_np = np.array(image)
+    return cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+
 if __name__ == "__main__":
     # Load a test image
-    test_image = Image.open("toa-heftiba-Xmn-QXsVL4k-unsplash.jpg")
-    # Convert PIL Image to numpy array (BGR format for OpenCV)
-    test_image_np = np.array(test_image)
-    test_image_np = cv2.cvtColor(test_image_np, cv2.COLOR_RGB2BGR)
+    test_image_np = load_image_as_bgr("toa-heftiba-Xmn-QXsVL4k-unsplash.jpg")
     
     # Apply all filters
     filtered_images = apply_filters(test_image_np)
