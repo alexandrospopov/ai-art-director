@@ -2,6 +2,8 @@ import cv2
 import numpy as np
 from PIL import Image
 from smolagents import tool
+import tempfile
+import os
 
 def apply_filters(image: np.ndarray) -> list[np.ndarray]:
     """Applies a series of filters to the input image.
@@ -156,8 +158,9 @@ if __name__ == "__main__":
     filtered_images = apply_filters(test_image_np)
     
     # Save results
+    dir = tempfile.mkdtemp()
     for i, filtered_img in enumerate(filtered_images):
-        # Convert back to RGB for saving
+        output_path = os.path.join(dir, f"filter_{i+1}.jpg")
         rgb_img = cv2.cvtColor(filtered_img, cv2.COLOR_BGR2RGB)
-        Image.fromarray(rgb_img).save(f"filter_{i+1}_result.jpg")
-        print(f"Saved filter_{i+1}_result.jpg")
+        Image.fromarray(rgb_img).save(output_path)
+        print(f"Saved {output_path}")
