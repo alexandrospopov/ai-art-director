@@ -1,176 +1,495 @@
-import os
-import tempfile
+"""photo_adjustments.py
 
-import cv2
+A lightweight toolbox of common photo‑editing primitives—contrast, exposure,
+saturation, shadows/highlights, white‑balance (temperature/tint), per‑hue HSL
+corrections—and creative effects such as vignette, film‑grain, and simple
+median denoising.
+
+Tweak‑cheat
+-----------
+For any multiplicative parameter (``factor``, ``amount``, ``strength``) a 10 %
+increase is achieved by multiplying by **1.10** (or **0.90** to decrease). For
+exposure this is ≈ **± 0.14 EV** because ``2**0.14 ≈ 1.10``.  Temp ±500 mired and
+Tint ±20 roughly equal a 10 % slider nudge in Lightroom.
+
+Dependencies:
+    pip install pillow numpy
+"""
+
+from __future__ import annotations
+
+import math
+from pathlib import Path
+from typing import Literal
+
 import numpy as np
-from PIL import Image
-from smolagents import tool
+from PIL import Image, ImageEnhance, ImageFilter
+
+# ---------------------------------------------------------------------------
+# Helper utilities
+# ---------------------------------------------------------------------------
 
 
-def apply_filters(image: np.ndarray) -> list[np.ndarray]:
-    """Applies a series of filters to the input image.
+def _to_numpy(img: Image.Image) -> np.ndarray:
+    """Convert a ``PIL.Image`` to a ``float32`` NumPy array in the `[0, 1]` range.
 
     Args:
-        image (np.ndarray): Input image in BGR format.
+        img (PIL.Image.Image): Input image in RGB mode.
 
     Returns:
-        list[np.ndarray]: List of filtered images in BGR format.
+        np.ndarray: Array of shape *(H, W, 3)* with values ∈ [0, 1].
     """
-    filtered_images = []
-
-    # Filter 1: Contrast adjustment
-    filtered_images.append(adjust_contrast(image))
-
-    # Filter 2: Saturation boost
-    filtered_images.append(adjust_saturation(image))
-
-    # Filter 3: Exposure adjustment
-    filtered_images.append(adjust_exposure(image))
-
-    # Filter 4: Denoised
-    filtered_images.append(denoise_image(image))
-
-    # Filter 5: Vignette effect
-    filtered_images.append(apply_vignette(image))
-
-    return filtered_images
+    return np.asarray(img).astype(np.float32) / 255.0
 
 
-@tool
-def adjust_contrast(image: np.ndarray, alpha: float = 1.5) -> np.ndarray:
-    """Adjusts the contrast of the image.
+def _to_image(arr: np.ndarray) -> Image.Image:
+    """Convert a `[0, 1]` NumPy array back to an 8‑bit ``PIL.Image``.
 
     Args:
-        image (np.ndarray): Input image in BGR format.
-        alpha (float, optional): Contrast control (1.0-3.0). 1.0 means no change. Defaults to 1.5.
+        arr (np.ndarray): Image data scaled to the `[0, 1]` range.
 
     Returns:
-        np.ndarray: Contrast adjusted image in BGR format.
+        PIL.Image.Image: 8‑bit RGB image.
     """
-    return cv2.convertScaleAbs(image, alpha=alpha, beta=0)
+    arr_uint8 = np.clip(arr * 255.0 + 0.5, 0, 255).astype(np.uint8)
+    return Image.fromarray(arr_uint8)
 
 
-@tool
-def adjust_saturation(image: np.ndarray, saturation_scale: float = 1.0) -> np.ndarray:
-    """Adjusts the saturation of the image.
+# ---------------------------------------------------------------------------
+# Basic global adjustments
+# ---------------------------------------------------------------------------
+
+
+def adjust_contrast(img: Image.Image, factor: float) -> Image.Image:
+    """Adjust global contrast.
 
     Args:
-        image (np.ndarray): Input image in BGR format.
-        saturation_scale (float, optional): Saturation scale factor. 1.0 means no change. Defaults to 1.0.
+        img (PIL.Image.Image): Input image.
+        factor (float): Contrast multiplier. `1.0` leaves the image unchanged;
+            values > 1 increase contrast and values < 1 flatten it.
 
     Returns:
-        np.ndarray: Saturation adjusted image in BGR format.
+        PIL.Image.Image: Contrast‑adjusted image.
+
+    Notes:
+        A 10 % boost corresponds to `factor *= 1.10` (or `0.90` to reduce 10 %).
     """
-    hsv_img = cv2.cvtColor(image, cv2.COLOR_BGR2HSV).astype(np.float32)
-    hsv_img[:, :, 1] *= saturation_scale
-    hsv_img[:, :, 1] = np.clip(hsv_img[:, :, 1], 0, 255)
-    return cv2.cvtColor(hsv_img.astype(np.uint8), cv2.COLOR_HSV2BGR)
+    return ImageEnhance.Contrast(img).enhance(factor)
 
 
-@tool
-def adjust_exposure(image: np.ndarray, beta: int = 50) -> np.ndarray:
-    """Adjusts the exposure (brightness) of the image.
+def adjust_exposure(img: Image.Image, ev: float) -> Image.Image:
+    """Adjust exposure by a given EV (Exposure Value) offset.
 
     Args:
-        image (np.ndarray): Input image in BGR format.
-        beta (int, optional): Brightness control. Positive values increase brightness, negative decrease. Defaults 50.
+        img (PIL.Image.Image): Input image.
+        ev (float): Exposure compensation in stops. `+1` doubles brightness,
+            `‑1` halves it.
 
     Returns:
-        np.ndarray: Exposure adjusted image in BGR format.
+        PIL.Image.Image: Exposure‑adjusted image.
+
+    Notes:
+        `±0.14 EV` is roughly a 10 % luminance change (`2**0.14 ≈ 1.10`).
     """
-    return cv2.convertScaleAbs(image, alpha=1.0, beta=beta)
+    return _to_image(_to_numpy(img) * (2.0**ev))
 
 
-@tool
-def denoise_image(image: np.ndarray, h: int = 10) -> np.ndarray:
-    """Denoises the image using Non-local Means Denoising algorithm.
+def adjust_saturation(img: Image.Image, factor: float) -> Image.Image:
+    """Adjust global saturation.
 
     Args:
-        image (np.ndarray): Input image in BGR format.
-        h (int, optional): Filter strength. Higher h value removes noise better but removes details. Defaults to 10.
+        img (PIL.Image.Image): Input image.
+        factor (float): Saturation multiplier. Values > 1 intensify colour and
+            values < 1 desaturate.
 
     Returns:
-        np.ndarray: Denoised image in BGR format.
+        PIL.Image.Image: Saturation‑adjusted image.
+
+    Notes:
+        `factor *= 1.10` (or `0.90`) yields a ± 10 % change.
     """
-    return cv2.fastNlMeansDenoisingColored(image, None, h, h, 7, 21)
+    return ImageEnhance.Color(img).enhance(factor)
 
 
-@tool
-def crop_image(image: np.ndarray, x: int, y: int, width: int, height: int) -> np.ndarray:
-    """Crops the image to the specified rectangle.
+# ---------------------------------------------------------------------------
+# Shadows / Highlights
+# ---------------------------------------------------------------------------
+
+
+def adjust_shadows_highlights(
+    img: Image.Image,
+    shadow: float = 1.0,
+    highlight: float = 1.0,
+) -> Image.Image:
+    """Lift shadows or tame highlights.
 
     Args:
-        image (np.ndarray): Input image in BGR format.
-        x (int): Top-left x-coordinate.
-        y (int): Top-left y-coordinate.
-        width (int): Width of the crop rectangle.
-        height (int): Height of the crop rectangle.
+        img (PIL.Image.Image): Input image.
+        shadow (float, optional): Multiplier applied mainly to dark tones.
+            Defaults to `1.0`. Values > 1 brighten shadows; < 1 darken them.
+        highlight (float, optional): Multiplier applied mainly to bright tones.
+            Defaults to `1.0`. Values < 1 recover detail; > 1 brighten further.
 
     Returns:
-        np.ndarray: Cropped image in BGR format.
+        PIL.Image.Image: Image with adjusted shadows/highlights.
+
+    Notes:
+        A 10 % shadow lift is `shadow *= 1.10`; a 10 % highlight cut is
+        `highlight *= 0.90`.
     """
-    return image[y : y + height, x : x + width]
+    arr = _to_numpy(img)
+    lum = arr.mean(axis=2, keepdims=True)
+    shadow_mask = np.clip(1.0 - lum * 2.0, 0.0, 1.0)
+    highlight_mask = np.clip((lum - 0.5) * 2.0, 0.0, 1.0)
+    arr = arr * (shadow_mask * (shadow - 1.0) + 1.0)
+    arr = arr * (highlight_mask * (highlight - 1.0) + 1.0)
+    return _to_image(arr)
 
 
-@tool
-def apply_vignette(image: np.ndarray, level: int = 2) -> np.ndarray:
-    """Applies a vignette effect to the image.
+# ---------------------------------------------------------------------------
+# White‑balance: Temperature & Tint
+# ---------------------------------------------------------------------------
+
+
+def adjust_temperature(img: Image.Image, delta: int) -> Image.Image:
+    """Shift white‑balance temperature.
 
     Args:
-        image (np.ndarray): Input image in BGR format.
-        level (int, optional): Intensity of the vignette effect. Defaults to 2.
+        img (PIL.Image.Image): Input image.
+        delta (int): Temperature shift in *mireds*. Positive values warm the
+            image (yellow/red); negative values cool it (blue).
 
     Returns:
-        np.ndarray: Image with vignette effect applied in BGR format.
+        PIL.Image.Image: Temperature‑adjusted image.
+
+    Notes:
+        ± 500 mired gives roughly a 10 % change on Lightroom’s Temp slider.
     """
-    rows, cols = image.shape[:2]
-    kernel_x = cv2.getGaussianKernel(cols, cols / level)
-    kernel_y = cv2.getGaussianKernel(rows, rows / level)
-    kernel = kernel_y * kernel_x.T
-    mask = kernel / kernel.max()
-    vignette = np.copy(image)
-    for i in range(3):
-        vignette[:, :, i] = vignette[:, :, i] * mask
-    return vignette
+    arr = _to_numpy(img)
+    r_scale, b_scale = 1.0 + delta * 4e-4, 1.0 - delta * 4e-4
+    return _to_image(arr * np.array([r_scale, 1.0, b_scale], dtype=np.float32))
 
 
-@tool
-def load_image_as_bgr(image_path: str) -> np.ndarray:
-    """Loads an image from path and converts it to BGR format for OpenCV.
+def adjust_tint(img: Image.Image, delta: int) -> Image.Image:
+    """Shift white‑balance tint between green and magenta.
 
     Args:
-        image_path (str): Path to the image file.
+        img (PIL.Image.Image): Input image.
+        delta (int): Tint shift. Positive values push toward magenta; negative
+            values toward green.
 
     Returns:
-        np.ndarray: Image in BGR format as numpy array.
+        PIL.Image.Image: Tint‑adjusted image.
+
+    Notes:
+        ± 20 approximates a 10 % tweak of Lightroom’s Tint slider.
     """
-    image = Image.open(image_path)
-    image_np = np.array(image)
-    return cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+    arr = _to_numpy(img)
+    g_scale, rb_scale = 1.0 - delta * 5e-4, 1.0 + delta * 5e-4
+    return _to_image(arr * np.array([rb_scale, g_scale, rb_scale], dtype=np.float32))
 
 
-@tool
-def save_image(image: np.ndarray, image_path: str) -> None:
-    """Saves an image to the specified path.
+# ---------------------------------------------------------------------------
+# RGB ⇄ HSL helpers
+# ---------------------------------------------------------------------------
+
+
+def _rgb_to_hsl(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Vectorised RGB→HSL conversion.
 
     Args:
-        image (np.ndarray): Image to save.
-        image_path (str): Path to save the image.
+        arr (np.ndarray): Float array in `[0, 1]` with shape *(H, W, 3)*.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray]: Hue, Saturation, Lightness
+        arrays each in `[0, 1]` and shape *(H, W)*.
     """
-    cv2.imwrite(image_path, image)
+    r, g, b = arr[..., 0], arr[..., 1], arr[..., 2]
+    maxc, minc = arr.max(axis=2), arr.min(axis=2)
+    li = (maxc + minc) / 2.0
+    s = np.zeros_like(li)
+    diff = maxc - minc
+    mask = diff != 0
+    lesser = li < 0.5
+    s[mask & lesser] = diff[mask & lesser] / (maxc + minc)[mask & lesser]
+    s[mask & ~lesser] = diff[mask & ~lesser] / (2.0 - maxc - minc)[mask & ~lesser]
+    h = np.zeros_like(li)
+    rc, gc, bc = (maxc - r) / (diff + 1e-20), (maxc - g) / (diff + 1e-20), (maxc - b) / (diff + 1e-20)
+    h[maxc == r] = (bc - gc)[maxc == r]
+    h[maxc == g] = 2.0 + (rc - bc)[maxc == g]
+    h[maxc == b] = 4.0 + (gc - rc)[maxc == b]
+    h = (h / 6.0) % 1.0
+    h[~mask] = 0.0
+    return h, s, li
+
+
+def _hsl_to_rgb(h: np.ndarray, s: np.ndarray, li: np.ndarray) -> np.ndarray:
+    """Vectorised HSL→RGB conversion.
+
+    Args:
+        h (np.ndarray): Hue channel `[0, 1]`.
+        s (np.ndarray): Saturation channel `[0, 1]`.
+        li (np.ndarray): Lightness channel `[0, 1]`.
+
+    Returns:
+        np.ndarray: Reconstructed RGB array in `[0, 1]`.
+    """
+
+    def _f(n: float) -> np.ndarray:
+        k = (n + h * 12.0) % 12.0
+        a = s * np.minimum(li, 1.0 - li)
+        return li - a * np.clip(np.minimum(np.minimum(k - 3.0, 9.0 - k), 1.0), -1.0, 1.0)
+
+    r, g, b = _f(0.0), _f(8.0), _f(4.0)
+    return np.stack([r, g, b], axis=-1)
+
+
+# Hue centres and +/- half‑widths (degrees) taken from Adobe’s HSL model
+COLOR_RANGES: dict[str, tuple[float, float]] = {
+    "red": (345, 15),  # 345° → 15° (wraps around 0)
+    "orange": (15, 45),
+    "yellow": (45, 75),
+    "green": (75, 165),
+    "aqua": (165, 195),
+    "blue": (195, 255),
+    "purple": (255, 285),
+    "magenta": (285, 345),
+}
+
+ColorName = Literal[
+    "red",
+    "orange",
+    "yellow",
+    "green",
+    "aqua",
+    "blue",
+    "purple",
+    "magenta",
+]
+
+
+def _range_for(color: ColorName) -> tuple[float, float]:
+    start, end = COLOR_RANGES[color]
+    return start % 360, end % 360
+
+
+def adjust_hue_color(img: Image.Image, color: ColorName, delta: float) -> Image.Image:
+    """Shift the **hue** of a specific colour bucket.
+
+    Args:
+        img (PIL.Image.Image): Input RGB image.
+        color (ColorName): Colour family to target.
+        delta (float): Hue shift *in degrees*.
+
+    Returns:
+        PIL.Image.Image: Image with adjusted hue for the selected colour.
+
+    Notes:
+        ± 10° is roughly a *10 %* tweak of the full hue wheel segment.
+        Possible colors are: red, orange, yellow, green, aqua, blue, purple, magenta
+    """
+    return adjust_hsl_channel(img, _range_for(color), h_delta=delta)
+
+
+def adjust_saturation_color(img: Image.Image, color: ColorName, factor: float) -> Image.Image:
+    """Change **saturation** of a specific colour bucket.
+
+    Args:
+        img (PIL.Image.Image): Input image.
+        color (ColorName): Colour family to target.
+        factor (float): Saturation multiplier.
+
+    Returns:
+        PIL.Image.Image: Image with adjusted saturation for the selected colour.
+
+    Notes:
+        Multiply ``factor`` by *1.10* (or *0.90*) for a ± 10 % change.
+        Possible colors are: red, orange, yellow, green, aqua, blue, purple, magenta
+    """
+    return adjust_hsl_channel(img, _range_for(color), s_factor=factor)
+
+
+def adjust_luminance_color(img: Image.Image, color: ColorName, factor: float) -> Image.Image:
+    """Change **luminance** (Lightness) of a specific colour bucket.
+
+    Args:
+        img (PIL.Image.Image): Input image.
+        color (ColorName): Colour family to target.
+        factor (float): Luminance multiplier.
+
+    Returns:
+        PIL.Image.Image: Image with adjusted luminance for the selected colour.
+
+    Notes:
+        Multiply ``factor`` by *1.10* (or *0.90*) for a ± 10 % luminance tweak.
+        Possible colors are: red, orange, yellow, green, aqua, blue, purple, magenta
+    """
+    return adjust_hsl_channel(img, _range_for(color), l_factor=factor)
+
+
+def adjust_hsl_channel(
+    img: Image.Image,
+    hue_range: tuple[float, float],
+    h_delta: float = 0.0,
+    s_factor: float = 1.0,
+    l_factor: float = 1.0,
+) -> Image.Image:
+    """Adjust Hue, Saturation, or Lightness for pixels within a hue slice.
+
+    Args:
+        img (PIL.Image.Image): Input image.
+        hue_range (Tuple[float, float]): Start and end hue in degrees `[0, 360)`.
+            The range may wrap past 360° (e.g. `(350, 20)` selects reds).
+        h_delta (float, optional): Hue shift in degrees. Defaults to `0.0`.
+        s_factor (float, optional): Saturation multiplier. Defaults to `1.0`.
+        l_factor (float, optional): Lightness multiplier. Defaults to `1.0`.
+
+    Returns:
+        PIL.Image.Image: Image with per‑hue HSL adjustment applied.
+
+    Notes:
+        Typical 10 % tweaks: `h_delta ≈ ±10°`, `s_factor *= 1.10`,
+        `l_factor *= 1.10` (or `0.90`).
+    """
+    arr = _to_numpy(img)
+    h, s, li = _rgb_to_hsl(arr)
+
+    h_start, h_end = np.deg2rad(hue_range[0]), np.deg2rad(hue_range[1])
+    h_rad = h * 2 * math.pi
+    if hue_range[0] <= hue_range[1]:
+        mask = (h_rad >= h_start) & (h_rad <= h_end)
+    else:
+        mask = (h_rad >= h_start) | (h_rad <= h_end)
+
+    h_new = h.copy()
+    s_new = s.copy()
+    l_new = li.copy()
+
+    h_new[mask] = (h[mask] + h_delta / 360.0) % 1.0
+    s_new[mask] = np.clip(s[mask] * s_factor, 0.0, 1.0)
+    l_new[mask] = np.clip(li[mask] * l_factor, 0.0, 1.0)
+
+    return _to_image(_hsl_to_rgb(h_new, s_new, l_new))
+
+
+# ---------------------------------------------------------------------------
+# Creative effects
+# ---------------------------------------------------------------------------
+
+
+def add_vignette(img: Image.Image, strength: float = 0.5, softness: float = 0.5) -> Image.Image:
+    """Add a radial vignette.
+
+    Args:
+        img (PIL.Image.Image): Input image.
+        strength (float, optional): Corner darkening amount in `[0, 1]`. Defaults
+            to `0.5`. `strength *= 1.10` boosts the vignette ~10 %.
+        softness (float, optional): Edge fall‑off exponent. Larger values give
+            smoother vignettes. Defaults to `0.5`.
+
+    Returns:
+        PIL.Image.Image: Vignetted image.
+    """
+    w, h = img.size
+    cx, cy = w / 2, h / 2
+    y, x = np.ogrid[:h, :w]
+    r = np.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+    mask = 1.0 - strength * ((r / r.max()) ** (softness * 4.0))
+    return _to_image(_to_numpy(img) * mask[..., None])
+
+
+def denoise_image(img: Image.Image, radius: int = 2) -> Image.Image:
+    """Median‑filter denoise.
+
+    Args:
+        img (PIL.Image.Image): Input image.
+        radius (int, optional): Radius of the median filter. Defaults to `2`.
+            Increasing by +1 is roughly a 10 % smoother result for small radii.
+
+    Returns:
+        PIL.Image.Image: Denoised image.
+    """
+    return img.filter(ImageFilter.MedianFilter(size=max(1, radius * 2 + 1)))
+
+
+def add_grain(img: Image.Image, amount: float = 0.05) -> Image.Image:
+    """Add monochromatic Gaussian grain.
+
+    Args:
+        img (PIL.Image.Image): Input image.
+        amount (float, optional): Noise standard deviation in the `[0, 1]`
+            domain. Defaults to `0.05`. `amount *= 1.10` ≈ +10 % more grain.
+
+    Returns:
+        PIL.Image.Image: Noisy image with film‑like grain.
+    """
+    noise = np.random.normal(0.0, amount, _to_numpy(img).shape).astype(np.float32)
+    return _to_image(_to_numpy(img) + noise)
+
+
+# ---------------------------------------------------------------------------
+# Demo pipeline
+# ---------------------------------------------------------------------------
+
+
+def demo_all(input_path: str, output_dir: str | Path = "demo_out") -> dict[str, str]:
+    """Run every adjustment once and save results.
+
+    Args:
+        input_path (str): Path to the source image file.
+        output_dir (str | Path, optional): Directory to write results. Defaults
+            to ``"demo_out"``.
+
+    Returns:
+        Dict[str, str]: Mapping of effect name to the saved file path.
+    """
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    img = Image.open(input_path).convert("RGB")
+
+    effects = {
+        "contrast": adjust_contrast(img, 1.1),
+        "exposure": adjust_exposure(img, 0.2),
+        "saturation": adjust_saturation(img, 1.2),
+        "shadows_highlights": adjust_shadows_highlights(img, 1.2, 0.9),
+        "temperature": adjust_temperature(img, 300),
+        "tint": adjust_tint(img, 15),
+        "vignette": add_vignette(img, 0.6, 0.7),
+        "denoise": denoise_image(add_grain(img, 0.08), radius=2),
+        "grain": add_grain(img, 0.08),
+        "blue_hue": adjust_hue_color(img, "blue", 10),
+        "blue_saturation": adjust_saturation_color(img, "blue", 1.1),
+        "blue_luminance": adjust_luminance_color(img, "blue", 1.1),
+    }
+
+    saved: dict[str, str] = {}
+    stem = Path(input_path).stem
+    for name, im in effects.items():
+        file_path = output_path / f"{stem}_{name}.jpg"
+        im.save(file_path, quality=95)
+        saved[name] = str(file_path)
+
+    return saved
 
 
 if __name__ == "__main__":
-    # Load a test image
-    test_image_np = load_image_as_bgr("test_image.jpg")
+    import argparse
+    import tempfile
 
-    # Apply all filters
-    filtered_images = apply_filters(test_image_np)
+    parser = argparse.ArgumentParser(description="Run all photo adjustments on an image.")
+    parser.add_argument("--input", "-i", type=str, help="Path to the input image file.")
+    parser.add_argument(
+        "--output_dir",
+        "-o",
+        type=str,
+        default=None,
+        help="Directory to save the output images.",
+    )
+    args = parser.parse_args()
 
-    # Save results
-    dir = tempfile.mkdtemp()
-    for i, filtered_img in enumerate(filtered_images):
-        output_path = os.path.join(dir, f"filter_{i+1}.jpg")
-        rgb_img = cv2.cvtColor(filtered_img, cv2.COLOR_BGR2RGB)
-        Image.fromarray(rgb_img).save(output_path)
-        print(f"Saved {output_path}")
+    if not args.output_dir:
+        args.output_dir = tempfile.mkdtemp(prefix="photo_adjustments_")
+
+    results = demo_all(args.input, args.output_dir)
+    for effect, path in results.items():
+        print(f"{effect}: {path}")
