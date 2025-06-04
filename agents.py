@@ -48,7 +48,7 @@ art_director = CodeAgent(
     managed_agents=[picture_operator],
     name="ArtDirector",
     description=(
-        "Decides which filter to apply to an image. "
+        "Decides which filter to apply to the image in 'image_path'. "
         "Give it your query as an argument, as well as the path to the image."
     ),
 )
