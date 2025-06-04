@@ -337,7 +337,6 @@ def adjust_luminance_color(img: Image.Image, color: ColorName, factor: float) ->
     return adjust_hsl_channel(img, _range_for(color), l_factor=factor)
 
 
-@tool
 def adjust_hsl_channel(
     img: Image.Image,
     hue_range: tuple[float, float],

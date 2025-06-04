@@ -27,7 +27,6 @@ picture_operator = CodeAgent(
         flt.adjust_hue_color,
         flt.adjust_saturation_color,
         flt.adjust_luminance_color,
-        flt.adjust_hsl_channel,
         flt.add_vignette,
         flt.denoise_image,
         flt.add_grain,
