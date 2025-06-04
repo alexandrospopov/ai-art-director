@@ -24,6 +24,7 @@ from typing import Literal
 
 import numpy as np
 from PIL import Image, ImageEnhance, ImageFilter
+from smolagents import tool
 
 # ---------------------------------------------------------------------------
 # Helper utilities
@@ -60,6 +61,7 @@ def _to_image(arr: np.ndarray) -> Image.Image:
 # ---------------------------------------------------------------------------
 
 
+@tool
 def adjust_contrast(img: Image.Image, factor: float) -> Image.Image:
     """Adjust global contrast.
 
@@ -77,6 +79,7 @@ def adjust_contrast(img: Image.Image, factor: float) -> Image.Image:
     return ImageEnhance.Contrast(img).enhance(factor)
 
 
+@tool
 def adjust_exposure(img: Image.Image, ev: float) -> Image.Image:
     """Adjust exposure by a given EV (Exposure Value) offset.
 
@@ -94,6 +97,7 @@ def adjust_exposure(img: Image.Image, ev: float) -> Image.Image:
     return _to_image(_to_numpy(img) * (2.0**ev))
 
 
+@tool
 def adjust_saturation(img: Image.Image, factor: float) -> Image.Image:
     """Adjust global saturation.
 
@@ -116,6 +120,7 @@ def adjust_saturation(img: Image.Image, factor: float) -> Image.Image:
 # ---------------------------------------------------------------------------
 
 
+@tool
 def adjust_shadows_highlights(
     img: Image.Image,
     shadow: float = 1.0,
@@ -151,6 +156,7 @@ def adjust_shadows_highlights(
 # ---------------------------------------------------------------------------
 
 
+@tool
 def adjust_temperature(img: Image.Image, delta: int) -> Image.Image:
     """Shift white‑balance temperature.
 
@@ -170,6 +176,7 @@ def adjust_temperature(img: Image.Image, delta: int) -> Image.Image:
     return _to_image(arr * np.array([r_scale, 1.0, b_scale], dtype=np.float32))
 
 
+@tool
 def adjust_tint(img: Image.Image, delta: int) -> Image.Image:
     """Shift white‑balance tint between green and magenta.
 
@@ -273,6 +280,7 @@ def _range_for(color: ColorName) -> tuple[float, float]:
     return start % 360, end % 360
 
 
+@tool
 def adjust_hue_color(img: Image.Image, color: ColorName, delta: float) -> Image.Image:
     """Shift the **hue** of a specific colour bucket.
 
@@ -291,6 +299,7 @@ def adjust_hue_color(img: Image.Image, color: ColorName, delta: float) -> Image.
     return adjust_hsl_channel(img, _range_for(color), h_delta=delta)
 
 
+@tool
 def adjust_saturation_color(img: Image.Image, color: ColorName, factor: float) -> Image.Image:
     """Change **saturation** of a specific colour bucket.
 
@@ -309,6 +318,7 @@ def adjust_saturation_color(img: Image.Image, color: ColorName, factor: float) -
     return adjust_hsl_channel(img, _range_for(color), s_factor=factor)
 
 
+@tool
 def adjust_luminance_color(img: Image.Image, color: ColorName, factor: float) -> Image.Image:
     """Change **luminance** (Lightness) of a specific colour bucket.
 
@@ -327,6 +337,7 @@ def adjust_luminance_color(img: Image.Image, color: ColorName, factor: float) ->
     return adjust_hsl_channel(img, _range_for(color), l_factor=factor)
 
 
+@tool
 def adjust_hsl_channel(
     img: Image.Image,
     hue_range: tuple[float, float],
@@ -377,6 +388,7 @@ def adjust_hsl_channel(
 # ---------------------------------------------------------------------------
 
 
+@tool
 def add_vignette(img: Image.Image, strength: float = 0.5, softness: float = 0.5) -> Image.Image:
     """Add a radial vignette.
 
@@ -398,6 +410,7 @@ def add_vignette(img: Image.Image, strength: float = 0.5, softness: float = 0.5)
     return _to_image(_to_numpy(img) * mask[..., None])
 
 
+@tool
 def denoise_image(img: Image.Image, radius: int = 2) -> Image.Image:
     """Median‑filter denoise.
 
@@ -412,6 +425,7 @@ def denoise_image(img: Image.Image, radius: int = 2) -> Image.Image:
     return img.filter(ImageFilter.MedianFilter(size=max(1, radius * 2 + 1)))
 
 
+@tool
 def add_grain(img: Image.Image, amount: float = 0.05) -> Image.Image:
     """Add monochromatic Gaussian grain.
 
@@ -425,6 +439,30 @@ def add_grain(img: Image.Image, amount: float = 0.05) -> Image.Image:
     """
     noise = np.random.normal(0.0, amount, _to_numpy(img).shape).astype(np.float32)
     return _to_image(_to_numpy(img) + noise)
+
+
+@tool
+def save_image(img: Image.Image, path: str) -> None:
+    """Save a PIL image to a file.
+
+    Args:
+        img (PIL.Image.Image): Image to save.
+        path (str): File path where the image will be saved.
+    """
+    img.save(path, format="JPEG", quality=95)
+
+
+@tool
+def load_image(path: str) -> Image.Image:
+    """Load an image from a file.
+
+    Args:
+        path (str): File path to the image.
+
+    Returns:
+        PIL.Image.Image: Loaded image in RGB mode.
+    """
+    return Image.open(path).convert("RGB")
 
 
 # ---------------------------------------------------------------------------
