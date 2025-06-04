@@ -45,7 +45,7 @@ picture_operator = CodeAgent(
 )
 
 art_director_model = InferenceClientModel(
-    model_id="Qwen/Qwen3-32B",
+    model_id="meta-llama/Llama-3.3-70B-Instruct",
     provider="nebius",
     token=HUGGING_FACE_TOKEN,
 )

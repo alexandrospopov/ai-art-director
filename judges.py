@@ -55,7 +55,7 @@ def call_to_llm(image_path, model, system_prompt=None, user_prompt=None, second_
 
 
 @tool
-def propose_operations(image_path: str, user_prompt: str = "Improve this image.") -> dict:
+def propose_operations(image_path: str, user_prompt: str = "Improve this image.") -> str:
     """
     Analyzes the provided image and suggests a series of enhancement operations.
 
@@ -64,14 +64,13 @@ def propose_operations(image_path: str, user_prompt: str = "Improve this image."
         user_prompt (str): Additional instructions or context provided by the user.
 
     Returns:
-        dict: The response from the language model containing a list of 5 different combinations
-        of image enhancement operations, such as applying filters, cropping, or other adjustments.
+        str: A response from the AI art director suggesting operations to apply to the image.
     """
 
     system_prompt = (
-        "You are an AI art director. "
-        "Your task is to analyze the provided image and suggest one operation to make"
-        "the user happy. You must suggest applying filters from the following list: "
+        "You are an AI art director. You come up a strategy to change the iamge"
+        "to match the user's request."
+        "You must analyze the provided image and suggest of operations."
         "adjust_contrast"
         "adjust_exposure"
         "adjust_saturation"
@@ -91,9 +90,9 @@ def propose_operations(image_path: str, user_prompt: str = "Improve this image."
         "You must not evaluate the image yourself, only pass it to the critic."
     )
     response = call_to_llm(
-        image_path, model="google/gemma-3-27b-it", system_prompt=system_prompt, user_prompt=user_prompt
+        image_path, model="Qwen/Qwen2.5-VL-72B-Instruct", system_prompt=system_prompt, user_prompt=user_prompt
     )
-    return response
+    return response["choices"][0]["message"]["content"]
 
 
 @tool
