@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Literal
 
 import numpy as np
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance
 from smolagents import tool
 
 # ---------------------------------------------------------------------------
@@ -410,21 +410,6 @@ def add_vignette(img: Image.Image, strength: float = 0.5, softness: float = 0.5)
 
 
 @tool
-def denoise_image(img: Image.Image, radius: int = 2) -> Image.Image:
-    """Median‑filter denoise.
-
-    Args:
-        img (PIL.Image.Image): Input image.
-        radius (int, optional): Radius of the median filter. Defaults to `2`.
-            Increasing by +1 is roughly a 10 % smoother result for small radii.
-
-    Returns:
-        PIL.Image.Image: Denoised image.
-    """
-    return img.filter(ImageFilter.MedianFilter(size=max(1, radius * 2 + 1)))
-
-
-@tool
 def add_grain(img: Image.Image, amount: float = 0.05) -> Image.Image:
     """Add monochromatic Gaussian grain.
 
@@ -492,7 +477,6 @@ def demo_all(input_path: str, output_dir: str | Path = "demo_out") -> dict[str, 
         "temperature": adjust_temperature(img, 300),
         "tint": adjust_tint(img, 15),
         "vignette": add_vignette(img, 0.6, 0.7),
-        "denoise": denoise_image(add_grain(img, 0.08), radius=2),
         "grain": add_grain(img, 0.08),
         "blue_hue": adjust_hue_color(img, "blue", 10),
         "blue_saturation": adjust_saturation_color(img, "blue", 1.1),
