@@ -1,12 +1,16 @@
-# AI Art Director – Filter Showdown
+---
+title: AI Art Director
+emoji: 🐢
+colorFrom: blue
+colorTo: red
+sdk: gradio
+sdk_version: 5.33.0
+app_file: app.py
+pinned: false
+license: apache-2.0
+---
 
-Upload an image. Agents apply multiple filters and pick the best one based on quality metrics.
-
-## Features
-
-- Multiple preset filters
-- Sharpness-based evaluation
-- Simple Gradio UI
+Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
 
 ### Credits
 
