@@ -79,15 +79,15 @@ def propose_operations(image_path: str, user_prompt: str = "Improve this image."
         "- adjust_shadows_highlights\n"
         "- adjust_temperature\n"
         "- adjust_tint\n"
-        "- adjust_hue_color\n"
-        "- adjust_saturation_color\n"
-        "- adjust_luminance_color\n"
+        "- adjust_hue_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]\n"
+        "- adjust_saturation_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]\n"
+        "- adjust_luminance_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]\n"
         "- add_vignette\n"
-        "- denoise_image\n"
         "- add_grain\n"
-        "In particular, you should use the methods that adjust colors luminance staturation and hue."
-        "Here's an example of how to use these methods:\n"
-        "When citing the methods, use a variation in percentage points, like +10% or -5%.\n"
+        "In particular, you should use the methods that adjust colors luminance staturation and hue. "
+        "I want at least 3 colors to be adjusted.\n"
+        "When citing the methods, use a variation in percentage points, like +10% or -10%.\n"
+        "Don't be subtle, the minimal increment is 10%.\n"
     )
     response = call_to_llm(
         image_path, model="Qwen/Qwen2.5-VL-72B-Instruct", system_prompt=system_prompt, user_prompt=user_prompt
@@ -135,7 +135,7 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str, list
         new_image_path (str): The file path to the new image.
         original_image_path (str): The file path to the new image.
         user_prompt (str): Additional instructions or context provided by the user.
-        list_of_enhancements (str): the list of enhancements applied to the image.
+        list_of_enhancements (str): the list of of all enhancements applied to the image.
 
     Returns:
         str: Feedback on the changes made to the image.
@@ -155,6 +155,7 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str, list
         "You will be provided with a prompt that describes the user's request to improve the image.\n"
         "Does the image 2 respect the desire of the user ?\n"
         "The application of the filters must be noticeable."
+        "The minimal increment is 10%. Don't be too subtle.\n"
         "You can refine the list of the modifications to apply to the image.\n"
         "You must not invent new methods or tools, only use the ones provided.\n"
     )
