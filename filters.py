@@ -62,82 +62,86 @@ def _to_image(arr: np.ndarray) -> Image.Image:
 
 
 @tool
-def adjust_contrast(img: Image.Image, increment: int) -> Image.Image:
-    """Adjust global contrast by increments of 5%.
+def adjust_contrast(img: Image.Image, factor: float) -> Image.Image:
+    """Adjust global contrast.
 
     Args:
         img (PIL.Image.Image): Input image.
-        increment (int): Number of 5% steps to adjust contrast. Positive increases, negative decreases.
+        factor (float): Contrast multiplier. `1.0` leaves the image unchanged;
+            values > 1 increase contrast and values < 1 flatten it.
 
     Returns:
         PIL.Image.Image: Contrast‑adjusted image.
 
     Notes:
-        Each increment is a 5% change. For example, increment=2 means +10% (factor=1.10).
+        A 10 % boost corresponds to `factor *= 1.10` (or `0.90` to reduce 10 %).
     """
-    factor = 1.0 + 0.05 * increment
     return ImageEnhance.Contrast(img).enhance(factor)
 
 
 @tool
-def adjust_exposure(img: Image.Image, increment: int) -> Image.Image:
-    """Adjust exposure by increments of 5%.
+def adjust_exposure(img: Image.Image, ev: float) -> Image.Image:
+    """Adjust exposure by a given EV (Exposure Value) offset.
 
     Args:
         img (PIL.Image.Image): Input image.
-        increment (int): Number of 5% steps to adjust exposure. Positive increases, negative decreases.
+        ev (float): Exposure compensation in stops. `+1` doubles brightness,
+            `‑1` halves it.
 
     Returns:
         PIL.Image.Image: Exposure‑adjusted image.
 
     Notes:
-        Each increment is a 5% change in brightness (factor=1.05^increment).
-        In EV: ev = log2(factor)
+        `±0.14 EV` is roughly a 10 % luminance change (`2**0.14 ≈ 1.10`).
     """
-    factor = 1.0 + 0.05 * increment
-    ev = math.log2(factor)
     return _to_image(_to_numpy(img) * (2.0**ev))
 
 
 @tool
-def adjust_saturation(img: Image.Image, increment: int) -> Image.Image:
-    """Adjust global saturation by increments of 5%.
+def adjust_saturation(img: Image.Image, factor: float) -> Image.Image:
+    """Adjust global saturation.
 
     Args:
         img (PIL.Image.Image): Input image.
-        increment (int): Number of 5% steps to adjust saturation. Positive increases, negative decreases.
+        factor (float): Saturation multiplier. Values > 1 intensify colour and
+            values < 1 desaturate.
 
     Returns:
         PIL.Image.Image: Saturation‑adjusted image.
 
     Notes:
-        Each increment is a 5% change. For example, increment=2 means +10% (factor=1.10).
+        `factor *= 1.10` (or `0.90`) yields a ± 10 % change.
     """
-    factor = 1.0 + 0.05 * increment
     return ImageEnhance.Color(img).enhance(factor)
+
+
+# ---------------------------------------------------------------------------
+# Shadows / Highlights
+# ---------------------------------------------------------------------------
 
 
 @tool
 def adjust_shadows_highlights(
     img: Image.Image,
-    shadow_increment: int = 0,
-    highlight_increment: int = 0,
+    shadow: float = 1.0,
+    highlight: float = 1.0,
 ) -> Image.Image:
-    """Lift shadows or tame highlights by increments of 5%.
+    """Lift shadows or tame highlights.
 
     Args:
         img (PIL.Image.Image): Input image.
-        shadow_increment (int): 5% steps to adjust shadows. Positive lifts, negative darkens.
-        highlight_increment (int): 5% steps to adjust highlights. Positive brightens, negative recovers detail.
+        shadow (float, optional): Multiplier applied mainly to dark tones.
+            Defaults to `1.0`. Values > 1 brighten shadows; < 1 darken them.
+        highlight (float, optional): Multiplier applied mainly to bright tones.
+            Defaults to `1.0`. Values < 1 recover detail; > 1 brighten further.
 
     Returns:
         PIL.Image.Image: Image with adjusted shadows/highlights.
 
     Notes:
-        Each increment is a 5% change (factor=1.0 + 0.05*increment).
+        A 10 % shadow lift is `shadow *= 1.10`; a 10 % highlight cut is
+        `highlight *= 0.90`.
     """
-    shadow = 1.0 + 0.05 * shadow_increment
-    highlight = 1.0 + 0.05 * highlight_increment
     arr = _to_numpy(img)
     lum = arr.mean(axis=2, keepdims=True)
     shadow_mask = np.clip(1.0 - lum * 2.0, 0.0, 1.0)
@@ -153,40 +157,40 @@ def adjust_shadows_highlights(
 
 
 @tool
-def adjust_temperature(img: Image.Image, increment: int) -> Image.Image:
-    """Shift white-balance temperature by increments of 5% (500 mired per step).
+def adjust_temperature(img: Image.Image, delta: int) -> Image.Image:
+    """Shift white‑balance temperature.
 
     Args:
         img (PIL.Image.Image): Input image.
-        increment (int): Number of 5% steps to shift temperature. Positive warms, negative cools.
+        delta (int): Temperature shift in *mireds*. Positive values warm the
+            image (yellow/red); negative values cool it (blue).
 
     Returns:
         PIL.Image.Image: Temperature‑adjusted image.
 
     Notes:
-        Each increment is ±500 mired.
+        ± 500 mired gives roughly a 10 % change on Lightroom’s Temp slider.
     """
-    delta = increment * 500
     arr = _to_numpy(img)
     r_scale, b_scale = 1.0 + delta * 4e-4, 1.0 - delta * 4e-4
     return _to_image(arr * np.array([r_scale, 1.0, b_scale], dtype=np.float32))
 
 
 @tool
-def adjust_tint(img: Image.Image, increment: int) -> Image.Image:
-    """Shift white-balance tint by increments of 5% (20 units per step).
+def adjust_tint(img: Image.Image, delta: int) -> Image.Image:
+    """Shift white‑balance tint between green and magenta.
 
     Args:
         img (PIL.Image.Image): Input image.
-        increment (int): Number of 5% steps to shift tint. Positive toward magenta, negative toward green.
+        delta (int): Tint shift. Positive values push toward magenta; negative
+            values toward green.
 
     Returns:
         PIL.Image.Image: Tint‑adjusted image.
 
     Notes:
-        Each increment is ±20 units.
+        ± 20 approximates a 10 % tweak of Lightroom’s Tint slider.
     """
-    delta = increment * 20
     arr = _to_numpy(img)
     g_scale, rb_scale = 1.0 - delta * 5e-4, 1.0 + delta * 5e-4
     return _to_image(arr * np.array([rb_scale, g_scale, rb_scale], dtype=np.float32))
@@ -277,59 +281,59 @@ def _range_for(color: ColorName) -> tuple[float, float]:
 
 
 @tool
-def adjust_hue_color(img: Image.Image, color: ColorName, increment: int) -> Image.Image:
-    """Shift the hue of a specific colour bucket by increments of 5% (5.4° per step).
+def adjust_hue_color(img: Image.Image, color: ColorName, delta: float) -> Image.Image:
+    """Shift the **hue** of a specific colour bucket.
 
     Args:
         img (PIL.Image.Image): Input RGB image.
-        color (ColorName): Colour family to target.
-        increment (int): Number of 5% steps to shift hue (5.4° per step).
+        color (ColorName): Colour family to target [red, orange, yellow, green, aqua, blue, purple, magenta]
+        delta (float): Hue shift *in degrees*.
 
     Returns:
         PIL.Image.Image: Image with adjusted hue for the selected colour.
 
     Notes:
-        Each increment is ±5.4° (10% of a 54° color segment).
+        ± 10° is roughly a *10 %* tweak of the full hue wheel segment.
+        Possible colors are: red, orange, yellow, green, aqua, blue, purple, magenta
     """
-    delta = increment * 5.4
     return adjust_hsl_channel(img, _range_for(color), h_delta=delta)
 
 
 @tool
-def adjust_saturation_color(img: Image.Image, color: ColorName, increment: int) -> Image.Image:
-    """Change saturation of a specific colour bucket by increments of 5%.
+def adjust_saturation_color(img: Image.Image, color: ColorName, factor: float) -> Image.Image:
+    """Change **saturation** of a specific colour bucket.
 
     Args:
         img (PIL.Image.Image): Input image.
-        color (ColorName): Colour family to target.
-        increment (int): Number of 5% steps to adjust saturation.
+        color (ColorName): Colour family to target [red, orange, yellow, green, aqua, blue, purple, magenta]
+        factor (float): Saturation multiplier.
 
     Returns:
         PIL.Image.Image: Image with adjusted saturation for the selected colour.
 
     Notes:
-        Each increment is a 5% change (factor=1.0 + 0.05*increment).
+        Multiply ``factor`` by *1.10* (or *0.90*) for a ± 10 % change.
+        Possible colors are: red, orange, yellow, green, aqua, blue, purple, magenta
     """
-    factor = 1.0 + 0.05 * increment
     return adjust_hsl_channel(img, _range_for(color), s_factor=factor)
 
 
 @tool
-def adjust_luminance_color(img: Image.Image, color: ColorName, increment: int) -> Image.Image:
-    """Change luminance (lightness) of a specific colour bucket by increments of 5%.
+def adjust_luminance_color(img: Image.Image, color: ColorName, factor: float) -> Image.Image:
+    """Change **luminance** (Lightness) of a specific colour bucket.
 
     Args:
         img (PIL.Image.Image): Input image.
-        color (ColorName): Colour family to target.
-        increment (int): Number of 5% steps to adjust luminance.
+        color (ColorName): Colour family to target[red, orange, yellow, green, aqua, blue, purple, magenta]
+        factor (float): Luminance multiplier.
 
     Returns:
         PIL.Image.Image: Image with adjusted luminance for the selected colour.
 
     Notes:
-        Each increment is a 5% change (factor=1.0 + 0.05*increment).
+        Multiply ``factor`` by *1.10* (or *0.90*) for a ± 10 % luminance tweak.
+        Possible colors are: red, orange, yellow, green, aqua, blue, purple, magenta
     """
-    factor = 1.0 + 0.05 * increment
     return adjust_hsl_channel(img, _range_for(color), l_factor=factor)
 
 
