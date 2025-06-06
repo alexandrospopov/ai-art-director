@@ -86,8 +86,8 @@ def propose_operations(image_path: str, user_prompt: str = "Improve this image."
         "- add_grain\n"
         "In particular, you should use the methods that adjust colors luminance staturation and hue. "
         "I want at least 3 colors to be adjusted.\n"
-        "When citing the methods, use a variation in percentage points, like +10% or -10%.\n"
-        "Don't be subtle, the minimal increment is 10%.\n"
+        "When citing the methods, describe qualitatively how much the effect should be applied : "
+        "a lot, bearly, to the maximum, ..."
     )
     response = call_to_llm(
         image_path, model="Qwen/Qwen2.5-VL-72B-Instruct", system_prompt=system_prompt, user_prompt=user_prompt
@@ -140,7 +140,7 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str, list
     Returns:
         str: Feedback on the changes made to the image.
     """
-
+    print("list_of_enhancements: ", list_of_enhancements)
     path_to_concat = concatenate_images_side_by_side(original_image_path, new_image_path)
 
     # iterate each time between the ops and the critic
@@ -157,11 +157,13 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str, list
         "The minimal increment is 10%. Don't be too subtle.\n"
         "You can refine the list of the modifications to apply to the image.\n"
         "You must not invent new methods or tools, only use the ones provided.\n"
+        "You must include in your answer a rate out of 10 of the image."
+        "If you rate the rate above 8/10, just accept the image as it is."
     )
 
     response = call_to_llm(
         path_to_concat,
-        model="google/gemma-3-27b-it",
+        model="Qwen/Qwen2.5-VL-72B-Instruct",
         system_prompt=system_prompt,
         user_prompt=f"the user wishes for : {user_prompt}.\n The enhancement applied are {list_of_enhancements}",
     )
