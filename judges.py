@@ -142,7 +142,6 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str, list
     """
 
     path_to_concat = concatenate_images_side_by_side(original_image_path, new_image_path)
-    print(path_to_concat)
 
     # iterate each time between the ops and the critic
 
@@ -160,7 +159,6 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str, list
         "You must not invent new methods or tools, only use the ones provided.\n"
     )
 
-    print(user_prompt)
     response = call_to_llm(
         path_to_concat,
         model="google/gemma-3-27b-it",
