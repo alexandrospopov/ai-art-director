@@ -69,12 +69,12 @@ def adjust_contrast(img: Image.Image, factor: float) -> Image.Image:
         img (PIL.Image.Image): Input image.
         factor (float): Contrast multiplier. `1.0` leaves the image unchanged;
             values > 1 increase contrast and values < 1 flatten it.
+            A factor of 1.1 is a lot. A factor of 1.02 is barely noticeable.
+
 
     Returns:
         PIL.Image.Image: Contrast‑adjusted image.
 
-    Notes:
-        A 10 % boost corresponds to `factor *= 1.10` (or `0.90` to reduce 10 %).
     """
     return ImageEnhance.Contrast(img).enhance(factor)
 
@@ -87,12 +87,11 @@ def adjust_exposure(img: Image.Image, ev: float) -> Image.Image:
         img (PIL.Image.Image): Input image.
         ev (float): Exposure compensation in stops. `+1` doubles brightness,
             `‑1` halves it.
+            a ev of 0.2 is a lot. a ev of 0.05 is barely noticeable.
+
 
     Returns:
         PIL.Image.Image: Exposure‑adjusted image.
-
-    Notes:
-        `±0.14 EV` is roughly a 10 % luminance change (`2**0.14 ≈ 1.10`).
     """
     return _to_image(_to_numpy(img) * (2.0**ev))
 
@@ -104,13 +103,12 @@ def adjust_saturation(img: Image.Image, factor: float) -> Image.Image:
     Args:
         img (PIL.Image.Image): Input image.
         factor (float): Saturation multiplier. Values > 1 intensify colour and
-            values < 1 desaturate.
+            values < 1 desaturate. `factor *= 1.10` (or `0.90`) yields a ± 10 % change.
+            a factor of 2 is a lot. a factor of 1.1 is barely noticeable.
 
     Returns:
         PIL.Image.Image: Saturation‑adjusted image.
 
-    Notes:
-        `factor *= 1.10` (or `0.90`) yields a ± 10 % change.
     """
     return ImageEnhance.Color(img).enhance(factor)
 
@@ -134,6 +132,8 @@ def adjust_shadows_highlights(
             Defaults to `1.0`. Values > 1 brighten shadows; < 1 darken them.
         highlight (float, optional): Multiplier applied mainly to bright tones.
             Defaults to `1.0`. Values < 1 recover detail; > 1 brighten further.
+        Here, variations of 1, are a lot.
+        Variations under 0.2 are not noticeable.
 
     Returns:
         PIL.Image.Image: Image with adjusted shadows/highlights.
@@ -164,12 +164,10 @@ def adjust_temperature(img: Image.Image, delta: int) -> Image.Image:
         img (PIL.Image.Image): Input image.
         delta (int): Temperature shift in *mireds*. Positive values warm the
             image (yellow/red); negative values cool it (blue).
+            You should not beyond ± 700 mired.
 
     Returns:
         PIL.Image.Image: Temperature‑adjusted image.
-
-    Notes:
-        ± 500 mired gives roughly a 10 % change on Lightroom’s Temp slider.
     """
     arr = _to_numpy(img)
     r_scale, b_scale = 1.0 + delta * 4e-4, 1.0 - delta * 4e-4
@@ -184,12 +182,10 @@ def adjust_tint(img: Image.Image, delta: int) -> Image.Image:
         img (PIL.Image.Image): Input image.
         delta (int): Tint shift. Positive values push toward magenta; negative
             values toward green.
+            You should not go beyond ± 150. Changes under 40 are barely noticeable.
 
     Returns:
         PIL.Image.Image: Tint‑adjusted image.
-
-    Notes:
-        ± 20 approximates a 10 % tweak of Lightroom’s Tint slider.
     """
     arr = _to_numpy(img)
     g_scale, rb_scale = 1.0 - delta * 5e-4, 1.0 + delta * 5e-4
@@ -287,14 +283,8 @@ def adjust_hue_color(img: Image.Image, color: ColorName, delta: float) -> Image.
     Args:
         img (PIL.Image.Image): Input RGB image.
         color (ColorName): Colour family to target [red, orange, yellow, green, aqua, blue, purple, magenta]
-        delta (float): Hue shift *in degrees*.
+        delta (float): Hue shift *in degrees*. 15 degrees is good increment. 40 is a lot. 5 is barely noticeable.
 
-    Returns:
-        PIL.Image.Image: Image with adjusted hue for the selected colour.
-
-    Notes:
-        ± 10° is roughly a *10 %* tweak of the full hue wheel segment.
-        Possible colors are: red, orange, yellow, green, aqua, blue, purple, magenta
     """
     return adjust_hsl_channel(img, _range_for(color), h_delta=delta)
 
@@ -306,14 +296,11 @@ def adjust_saturation_color(img: Image.Image, color: ColorName, factor: float) -
     Args:
         img (PIL.Image.Image): Input image.
         color (ColorName): Colour family to target [red, orange, yellow, green, aqua, blue, purple, magenta]
-        factor (float): Saturation multiplier.
+        factor (float): Saturation multiplier. Factor under +/- 0.1 are barely noticeable.
+            Factor of 1 are very strong variations.
 
     Returns:
         PIL.Image.Image: Image with adjusted saturation for the selected colour.
-
-    Notes:
-        Multiply ``factor`` by *1.10* (or *0.90*) for a ± 10 % change.
-        Possible colors are: red, orange, yellow, green, aqua, blue, purple, magenta
     """
     return adjust_hsl_channel(img, _range_for(color), s_factor=factor)
 
@@ -325,14 +312,10 @@ def adjust_luminance_color(img: Image.Image, color: ColorName, factor: float) ->
     Args:
         img (PIL.Image.Image): Input image.
         color (ColorName): Colour family to target[red, orange, yellow, green, aqua, blue, purple, magenta]
-        factor (float): Luminance multiplier.
+        factor (float): Luminance multiplier. A factor of 0.5 is a lot, 0.9 is barely noticeable.
 
     Returns:
         PIL.Image.Image: Image with adjusted luminance for the selected colour.
-
-    Notes:
-        Multiply ``factor`` by *1.10* (or *0.90*) for a ± 10 % luminance tweak.
-        Possible colors are: red, orange, yellow, green, aqua, blue, purple, magenta
     """
     return adjust_hsl_channel(img, _range_for(color), l_factor=factor)
 
@@ -388,19 +371,18 @@ def adjust_hsl_channel(
 
 
 @tool
-def add_vignette(img: Image.Image, strength: float = 0.5, softness: float = 0.5) -> Image.Image:
+def add_vignette(img: Image.Image, strength: float = 0.5) -> Image.Image:
     """Add a radial vignette.
 
     Args:
         img (PIL.Image.Image): Input image.
         strength (float, optional): Corner darkening amount in `[0, 1]`. Defaults
             to `0.5`. `strength *= 1.10` boosts the vignette ~10 %.
-        softness (float, optional): Edge fall‑off exponent. Larger values give
-            smoother vignettes. Defaults to `0.5`.
-
+        A strength of 1 is the maximum a lot. Under 0.2 is barely noticeable.
     Returns:
         PIL.Image.Image: Vignetted image.
     """
+    softness = 0.5
     w, h = img.size
     cx, cy = w / 2, h / 2
     y, x = np.ogrid[:h, :w]
@@ -416,10 +398,9 @@ def add_grain(img: Image.Image, amount: float = 0.05) -> Image.Image:
     Args:
         img (PIL.Image.Image): Input image.
         amount (float, optional): Noise standard deviation in the `[0, 1]`
-            domain. Defaults to `0.05`. `amount *= 1.10` ≈ +10 % more grain.
+            domain.
+            You should not go beyond an amount of 0.1, as it is a lot.
 
-    Returns:
-        PIL.Image.Image: Noisy image with film‑like grain.
     """
     noise = np.random.normal(0.0, amount, _to_numpy(img).shape).astype(np.float32)
     return _to_image(_to_numpy(img) + noise)
@@ -470,17 +451,17 @@ def demo_all(input_path: str, output_dir: str | Path = "demo_out") -> dict[str, 
     img = Image.open(input_path).convert("RGB")
 
     effects = {
-        "contrast": adjust_contrast(img, 1.1),
-        "exposure": adjust_exposure(img, 0.2),
-        "saturation": adjust_saturation(img, 1.2),
-        "shadows_highlights": adjust_shadows_highlights(img, 1.2, 0.9),
-        "temperature": adjust_temperature(img, 300),
-        "tint": adjust_tint(img, 15),
-        "vignette": add_vignette(img, 0.6, 0.7),
-        "grain": add_grain(img, 0.08),
-        "blue_hue": adjust_hue_color(img, "blue", 10),
-        "blue_saturation": adjust_saturation_color(img, "blue", 1.1),
-        "blue_luminance": adjust_luminance_color(img, "blue", 1.1),
+        # "contrast": adjust_contrast(img, 1.1),
+        # "exposure": adjust_exposure(img, 0.05),
+        # "saturation": adjust_saturation(img, 1.1),
+        # "shadows_highlights": adjust_shadows_highlights(img, 1.3, 0.5),
+        # "temperature": adjust_temperature(img, -700),
+        "tint": adjust_tint(img, 150),
+        # "vignette": add_vignette(img, 0.2),
+        # "grain": add_grain(img, 0.1),
+        # "blue_hue": adjust_hue_color(img, "yellow", 15),
+        # "blue_saturation": adjust_saturation_color(img, "yellow", 1.2),
+        # "blue_luminance": adjust_luminance_color(img, "yellow", 1.1),
     }
 
     saved: dict[str, str] = {}
@@ -488,6 +469,7 @@ def demo_all(input_path: str, output_dir: str | Path = "demo_out") -> dict[str, 
     for name, im in effects.items():
         file_path = output_path / f"{stem}_{name}.jpg"
         im.save(file_path, quality=95)
+        im.show(title=name)
         saved[name] = str(file_path)
 
     return saved
@@ -512,5 +494,6 @@ if __name__ == "__main__":
         args.output_dir = tempfile.mkdtemp(prefix="photo_adjustments_")
 
     results = demo_all(args.input, args.output_dir)
+
     for effect, path in results.items():
         print(f"{effect}: {path}")
