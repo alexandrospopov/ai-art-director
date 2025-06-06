@@ -24,6 +24,7 @@ picture_operator_prompt = (
     "For each operation, you will receive a percentage change, like +10% or -5%."
     "After applying the operations, you must pass the resulting image to the critic for evaluation."
     "The critic will provide feedback on whether the change is too much, too little, or just right."
+    "You can call the critic only 2 times per image."
     "You must adjust the operations based on the critic's feedback."
 )
 
