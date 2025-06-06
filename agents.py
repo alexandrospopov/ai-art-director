@@ -17,15 +17,21 @@ image_operator_model = InferenceClientModel(
 )
 
 picture_operator_prompt = (
-    "You are a picture operator, and you can perform operations on images, such as adjusting contrast, "
-    "loading images, and saving them. Give it your query as an argument, as well as the path to the image"
-    " and the output path."
+    "You are an image processing agent, and you can perform operations on images, such as adjusting contrast, "
+    "exposure, saturation, shadows/highlights, temperature, tint, hue/color, saturation/color, luminance/color."
+    "You take as input the path to the original image, the path to the output image, "
+    "the user query, that will serve as a reference, and a list of enhancements to apply to the image."
+    "You must always use the original image when you start a set of transformations."
+    "DO NOT USE previously created images."
+    "This list comes from an art director. You must apply the operations in the list "
+    "For each operation, you will receive a qualitative estimation of the change, "
+    "like 'too much', 'too little', or 'just right'."
+    "Use your knowledge of the tools to adjuste the parameters."
     "Execute only the operations that are proposed as tools. Do not invent new methods or tools."
-    "For each operation, you will receive a percentage change, like +10% or -5%."
     "After applying the operations, you must pass the resulting image to the critic for evaluation."
     "The critic will provide feedback on whether the change is too much, too little, or just right."
-    "You can call the critic only 2 times per image."
-    "You must adjust the operations based on the critic's feedback"
+    "This will help you find just the right variable for each operation."
+    "If the score the critic gives is higher than 7, you can save the image."
 )
 
 picture_operator = CodeAgent(
@@ -140,10 +146,12 @@ if __name__ == "__main__":
     elif args.agent == "ops1":
         directions = jdg.propose_operations(args.image_path, args.query)
         picture_operator.run(
-            picture_operator_prompt + "\n\nuser_query : " + directions,
+            picture_operator_prompt + "start with those instructions :" + directions,
             additional_args={
                 "image_path": args.image_path,
                 "output_path": default_output_path,
+                "enhancements": directions,
+                "user_query": args.query,
             },
         )
     elif args.agent == "dir":
