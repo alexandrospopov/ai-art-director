@@ -126,7 +126,7 @@ def concatenate_images_side_by_side(image_path1: str, image_path2: str) -> str:
 
 
 @tool
-def critic(new_image_path: str, original_image_path: str, user_prompt: str) -> str:
+def critic(new_image_path: str, original_image_path: str, user_prompt: str, latest_guidelies: str) -> str:
     """
     Evaluates the new image against the old image and provides feedback.
 
@@ -134,6 +134,7 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str) -> s
         new_image_path (str): The file path to the new image.
         original_image_path (str): The file path to the new image.
         user_prompt (str): Additional instructions or context provided by the user.
+        latest_guidelies (str): The latest guidelines applied to the image.
 
     Returns:
         str: Feedback on the changes made to the image.
@@ -152,12 +153,7 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str) -> s
         "Your task is to evaluate the changes made to image 2.\n"
         "You will be provided with a prompt that describes the user's request to improve the image.\n"
         "Does the image 2 respect the desire of the user ?\n"
-        "You have 3 options:\n"
-        "- Either the filters applied are too strong, and should be tuned down.\n"
-        "- Or the filters applied are too weak, and should be tuned up.\n"
-        "- Or the filters applied are just right, and the image should be saved.\n"
-        "You must provide a detailed explanation of your evaluation, "
-        "including the reasons for your decision and any specific aspects of the image that influenced your judgment.\n"
+        "You can refine the guidelines of the art director, but you must respect the general direction.\n"
         "You must not invent new methods or tools, only use the ones provided.\n"
     )
 
@@ -166,7 +162,7 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str) -> s
         path_to_concat,
         model="google/gemma-3-27b-it",
         system_prompt=system_prompt,
-        user_prompt=user_prompt,
+        user_prompt=f"the user wishes for : {user_prompt}.\n The director's latest guidelines are: {latest_guidelies}",
     )
 
     return response["choices"][0]["message"]["content"]
