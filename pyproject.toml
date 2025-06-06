@@ -10,5 +10,5 @@ dependencies = [
     "openai>=1.84.0",
     "opencv-python>=4.11.0.86",
     "pillow>=11.2.1",
-    "smolagents>=1.17.0",
+    "smolagents[telemetry,toolkit]>=1.17.0",
 ]
