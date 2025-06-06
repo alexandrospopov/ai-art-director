@@ -25,7 +25,7 @@ picture_operator_prompt = (
     "After applying the operations, you must pass the resulting image to the critic for evaluation."
     "The critic will provide feedback on whether the change is too much, too little, or just right."
     "You can call the critic only 2 times per image."
-    "You must adjust the operations based on the critic's feedback."
+    "You must adjust the operations based on the critic's feedback"
 )
 
 picture_operator = CodeAgent(
@@ -76,6 +76,29 @@ art_director = CodeAgent(
     description=art_director_prompt,
     name="Manager",
 )
+
+
+def run_photo_enchancement_agent(
+    query: str,
+    image_path: str = "small_test_image.jpg",
+    output_path: str = "output.jpg",
+):
+    """
+    Run the photo enhancement agent with the provided query and image path.
+
+    Args:
+        query (str): The user query for the agent.
+        image_path (str): Path to the input image.
+        output_path (str): Path to save the output image.
+    """
+    directions = jdg.propose_operations(image_path, query)
+    picture_operator.run(
+        picture_operator_prompt + "\n\nuser_query : " + directions,
+        additional_args={
+            "image_path": image_path,
+            "output_path": output_path,
+        },
+    )
 
 
 if __name__ == "__main__":
