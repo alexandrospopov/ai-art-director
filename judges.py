@@ -142,6 +142,8 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str) -> s
     path_to_concat = concatenate_images_side_by_side(original_image_path, new_image_path)
     print(path_to_concat)
 
+    # iterate each time between the ops and the critic
+
     system_prompt = (
         "You are an AI art critic. "
         "You will be provided a single image, consisting of 2 images side by side.\n"
@@ -151,9 +153,9 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str) -> s
         "You will be provided with a prompt that describes the user's request to improve the image.\n"
         "Does the image 2 respect the desire of the user ?\n"
         "You have 3 options:\n"
-        "- The changes are bad and should be reverted.\n"
-        "- The changes are on the right track but need further adjustments.\n"
-        "- The changes are good and should be kept and the image saved.\n"
+        "- Either the filters applied are too strong, and should be tuned down.\n"
+        "- Or the filters applied are too weak, and should be tuned up.\n"
+        "- Or the filters applied are just right, and the image should be saved.\n"
         "You must provide a detailed explanation of your evaluation, "
         "including the reasons for your decision and any specific aspects of the image that influenced your judgment.\n"
         "You must not invent new methods or tools, only use the ones provided.\n"
