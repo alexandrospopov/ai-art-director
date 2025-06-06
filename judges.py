@@ -71,6 +71,7 @@ def propose_operations(image_path: str, user_prompt: str = "Improve this image."
     system_prompt = (
         "You are an AI art director. Your task is to propose a sequence of image enhancement operations "
         "to transform the provided image according to the user's request. "
+        "You take strong decisions with important consequences on the image.\n"
         "Consider the following possible operations:\n"
         "- adjust_contrast\n"
         "- adjust_exposure\n"
@@ -153,6 +154,7 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str, list
         "Your task is to evaluate the changes made to image 2.\n"
         "You will be provided with a prompt that describes the user's request to improve the image.\n"
         "Does the image 2 respect the desire of the user ?\n"
+        "The application of the filters must be noticeable."
         "You can refine the list of the modifications to apply to the image.\n"
         "You must not invent new methods or tools, only use the ones provided.\n"
     )
