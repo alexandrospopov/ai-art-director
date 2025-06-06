@@ -1,6 +1,7 @@
 import base64
 import io
 import os
+import tempfile
 
 from openai import OpenAI
 from PIL import Image
@@ -85,19 +86,7 @@ def propose_operations(image_path: str, user_prompt: str = "Improve this image."
         "- add_grain\n"
         "In particular, you should use the methods that adjust colors luminance staturation and hue."
         "Here's an example of how to use these methods:\n"
-        "1. Boost foliage without oversaturating skin"
-        r"img = adjust_saturation_color(img, 'green', 1.2)  # +20\% green saturation"
-        "img = adjust_luminance_color(img, 'green', 1.1)   # brighten greens a bit\n"
-        "2. Warm skin tones without touching the whole image"
-        "img = adjust_hue_color(img, 'orange', -5)         # shift orange hue toward red"
-        "img = adjust_luminance_color(img, 'orange', 1.05) # subtle lift in skin brightness\n"
-        "3. Darken blue sky for drama (a common Lightroom trick)"
-        "img = adjust_luminance_color(img, 'blue', 0.85)   # darken blues"
-        "img = adjust_saturation_color(img, 'blue', 1.15)  # intensify sky color\n\n"
-        "For each operation you suggest, specify the amount to apply in relative units (e.g., +10%). "
-        "Do not perform any operations or evaluate the image yourself. "
-        "Only suggest a list of operations and their recommended amounts. "
-        "Evaluation will be handled by a separate critic."
+        "When citing the methods, use a variation in percentage points, like +10% or -5%.\n"
     )
     response = call_to_llm(
         image_path, model="Qwen/Qwen2.5-VL-72B-Instruct", system_prompt=system_prompt, user_prompt=user_prompt
@@ -105,36 +94,79 @@ def propose_operations(image_path: str, user_prompt: str = "Improve this image."
     return response["choices"][0]["message"]["content"]
 
 
+def concatenate_images_side_by_side(image_path1: str, image_path2: str) -> str:
+    """
+    Concatenates two images side by side, saves the result to a temporary file, and returns the file path.
+
+    Args:
+        image_path1 (str): Path to the first image.
+        image_path2 (str): Path to the second image.
+
+    Returns:
+        str: Path to the concatenated image saved in a temporary file.
+    """
+    img1 = Image.open(image_path1)
+    img2 = Image.open(image_path2)
+
+    separator_width = 5
+    total_width = img1.width + separator_width + img2.width
+    max_height = max(img1.height, img2.height)
+
+    new_img = Image.new("RGB", (total_width, max_height), color=(0, 0, 0))
+    new_img.paste(img1, (0, 0))
+    # Draw the black separator (already black background, but for clarity)
+    separator_box = (img1.width, 0, img1.width + separator_width, max_height)
+    new_img.paste(Image.new("RGB", (separator_width, max_height), (0, 0, 0)), separator_box)
+    new_img.paste(img2, (img1.width + separator_width, 0))
+
+    temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+    new_img.save(temp_file, format="JPEG")
+    temp_file.close()
+    return temp_file.name
+
+
 @tool
-def critic(new_image_path: str, old_image_path: str) -> str:
+def critic(new_image_path: str, original_image_path: str, user_prompt: str) -> str:
     """
     Evaluates the new image against the old image and provides feedback.
 
     Args:
         new_image_path (str): The file path to the new image.
-        old_image_path (str): The file path to the old image.
+        original_image_path (str): The file path to the new image.
+        user_prompt (str): Additional instructions or context provided by the user.
 
     Returns:
         str: Feedback on the changes made to the image.
     """
+
+    path_to_concat = concatenate_images_side_by_side(original_image_path, new_image_path)
+    print(path_to_concat)
+
     system_prompt = (
         "You are an AI art critic. "
-        "Your task is to evaluate the changes made to an image. "
-        "The first image in the new one and the second image is the old one. "
-        "Compare the new image with the old one and provide feedback on the changes."
-        "You have 3 options, either the changes are bad and should be reverted, "
-        "or the changes are on the right track but need further adjustments, "
-        "or the changes are good and should be kept and the image saved."
+        "You will be provided a single image, consisting of 2 images side by side.\n"
+        "On the left side, you will see the original image, "
+        "and on the right side, you will see the new image enhanced by AI.\n"
+        "Your task is to evaluate the changes made to image 2.\n"
+        "You will be provided with a prompt that describes the user's request to improve the image.\n"
+        "Does the image 2 respect the desire of the user ?\n"
+        "You have 3 options:\n"
+        "- The changes are bad and should be reverted.\n"
+        "- The changes are on the right track but need further adjustments.\n"
+        "- The changes are good and should be kept and the image saved.\n"
+        "You must provide a detailed explanation of your evaluation, "
+        "including the reasons for your decision and any specific aspects of the image that influenced your judgment.\n"
+        "You must not invent new methods or tools, only use the ones provided.\n"
     )
-    user_prompt = "Evaluate the changes made to this image."
 
+    print(user_prompt)
     response = call_to_llm(
-        new_image_path,
+        path_to_concat,
         model="google/gemma-3-27b-it",
         system_prompt=system_prompt,
         user_prompt=user_prompt,
-        second_image_path=old_image_path,
     )
+
     return response["choices"][0]["message"]["content"]
 
 
