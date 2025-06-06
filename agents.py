@@ -40,7 +40,6 @@ picture_operator = CodeAgent(
         flt.adjust_saturation_color,
         flt.adjust_luminance_color,
         flt.add_vignette,
-        flt.denoise_image,
         flt.add_grain,
         flt.save_image,
         flt.load_image,
