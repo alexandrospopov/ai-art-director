@@ -286,7 +286,7 @@ def adjust_hue_color(img: Image.Image, color: ColorName, delta: float) -> Image.
 
     Args:
         img (PIL.Image.Image): Input RGB image.
-        color (ColorName): Colour family to target.
+        color (ColorName): Colour family to target [red, orange, yellow, green, aqua, blue, purple, magenta]
         delta (float): Hue shift *in degrees*.
 
     Returns:
@@ -305,7 +305,7 @@ def adjust_saturation_color(img: Image.Image, color: ColorName, factor: float) -
 
     Args:
         img (PIL.Image.Image): Input image.
-        color (ColorName): Colour family to target.
+        color (ColorName): Colour family to target [red, orange, yellow, green, aqua, blue, purple, magenta]
         factor (float): Saturation multiplier.
 
     Returns:
@@ -324,7 +324,7 @@ def adjust_luminance_color(img: Image.Image, color: ColorName, factor: float) ->
 
     Args:
         img (PIL.Image.Image): Input image.
-        color (ColorName): Colour family to target.
+        color (ColorName): Colour family to target[red, orange, yellow, green, aqua, blue, purple, magenta]
         factor (float): Luminance multiplier.
 
     Returns:
