@@ -2,6 +2,7 @@ import argparse
 import os
 import tempfile
 
+from PIL import Image
 from smolagents import CodeAgent, InferenceClientModel
 
 import filters as flt
@@ -10,7 +11,7 @@ import judges as jdg
 HUGGING_FACE_TOKEN = os.environ["HUGGING_FACE_TOKEN"]
 
 image_operator_model = InferenceClientModel(
-    model_id="Qwen/Qwen2.5-Coder-32B-Instruct",
+    model_id="Qwen/Qwen3-30B-A3B",
     provider="nebius",
     token=HUGGING_FACE_TOKEN,
     max_tokens=5000,
@@ -76,12 +77,32 @@ art_director_prompt = (
     "You must not invent new methods or tools, only use the ones provided."
 )
 art_director = CodeAgent(
-    tools=[jdg.propose_operations, jdg.critic],
+    tools=[jdg.critic],
     model=art_director_model,
     managed_agents=[picture_operator],
     description=art_director_prompt,
     name="Manager",
 )
+
+
+def resize_longest_side_to_500(image_path, output_path):
+    """
+    Resize the image so that its longest side is 500 pixels, preserving aspect ratio.
+
+    Args:
+        image_path (str): Path to the input image.
+        output_path (str): Path to save the resized image.
+    """
+    with Image.open(image_path) as img:
+        width, height = img.size
+        if width >= height:
+            new_width = 500
+            new_height = int((500 / width) * height)
+        else:
+            new_height = 500
+            new_width = int((500 / height) * width)
+        resized_img = img.resize((new_width, new_height), Image.LANCZOS)
+        resized_img.save(output_path)
 
 
 def run_photo_enchancement_agent(
@@ -97,7 +118,13 @@ def run_photo_enchancement_agent(
         image_path (str): Path to the input image.
         output_path (str): Path to save the output image.
     """
-    directions = jdg.propose_operations(image_path, query)
+
+    # Create a temporary file for the resized image
+    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
+        resized_image_path = tmp.name
+    resize_longest_side_to_500(image_path=image_path, output_path=resized_image_path)
+    image_path = resized_image_path
+    directions = jdg.call_to_director(image_path, query)
     picture_operator.run(
         picture_operator_prompt + "\n\nuser_query : " + directions,
         additional_args={
@@ -113,7 +140,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--agent",
         "-a",
-        choices=["ops", "ops1", "dir"],
+        choices=["ops", "dir"],
         required=True,
         help="Which agent to run.",
     )
@@ -143,8 +170,8 @@ if __name__ == "__main__":
                 "output_path": default_output_path,
             },
         )
-    elif args.agent == "ops1":
-        directions = jdg.propose_operations(args.image_path, args.query)
+    elif args.agent == "dir":
+        directions = jdg.call_to_director(args.image_path, args.query)
         picture_operator.run(
             picture_operator_prompt + "start with those instructions :" + directions,
             additional_args={
@@ -152,13 +179,5 @@ if __name__ == "__main__":
                 "output_path": default_output_path,
                 "enhancements": directions,
                 "user_query": args.query,
-            },
-        )
-    elif args.agent == "dir":
-        art_director.run(
-            art_director_prompt + "\n\nuser_query : " + args.query,
-            additional_args={
-                "image_path": args.image_path,
-                "output_path": default_output_path,
             },
         )
