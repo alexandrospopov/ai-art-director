@@ -58,32 +58,6 @@ picture_operator = CodeAgent(
     managed_agents=[],
 )
 
-art_director_model = InferenceClientModel(
-    model_id="meta-llama/Llama-3.3-70B-Instruct",
-    provider="nebius",
-    token=HUGGING_FACE_TOKEN,
-)
-
-art_director_prompt = (
-    "You manage the relations between the art director, the picture operator and the critic."
-    "You must present the images to improve to the art director, who will propose operations to apply to the image."
-    "The quantitative parameters in operations are hard to predict, so the art director will propose operations "
-    "with a percentage change, like +10% or -5%."
-    "You must pass those operations to the picture operator, who will apply them to the image "
-    "and refine the percentage changes with the help of the critic."
-    "Once all operations are applied, and the critic is happy, you can save the final image."
-    "You must not evaluate the image yourself, only pass it to the critic."
-    "You must not propose operations yourself, only pass them to the picture operator."
-    "You must not invent new methods or tools, only use the ones provided."
-)
-art_director = CodeAgent(
-    tools=[jdg.critic],
-    model=art_director_model,
-    managed_agents=[picture_operator],
-    description=art_director_prompt,
-    name="Manager",
-)
-
 
 def resize_longest_side_to_500(image_path, output_path):
     """
