@@ -1,6 +1,7 @@
 import base64
 import io
 import os
+import re
 import tempfile
 
 from openai import OpenAI
@@ -16,19 +17,16 @@ def pil_image_to_data_url(pil_image, format="JPEG"):
     return f"data:{mime_type};base64,{base64_encoded_data}"
 
 
-def call_to_llm(image_path, model, system_prompt=None, user_prompt=None, second_image_path=None):
-    img = Image.open(image_path)
-    data_url = pil_image_to_data_url(img, format=img.format)
+def call_to_llm(model, image_path=None, system_prompt=None, user_prompt=None):
 
-    user_content = [
-        {"type": "text", "text": user_prompt},
-        {"type": "image_url", "image_url": {"url": data_url}},
-    ]
+    user_content = []
+    if image_path:
+        img = Image.open(image_path)
+        data_url = pil_image_to_data_url(img, format=img.format)
+        user_content.append({"type": "image_url", "image_url": {"url": data_url}})
 
-    if second_image_path:
-        img2 = Image.open(second_image_path)
-        data_url2 = pil_image_to_data_url(img2, format=img2.format)
-        user_content.append({"type": "image_url", "image_url": {"url": data_url2}})
+    if user_prompt:
+        user_content.append({"type": "text", "text": user_prompt})
 
     client = OpenAI(
         base_url="https://api.studio.nebius.com/v1/",
@@ -53,46 +51,6 @@ def call_to_llm(image_path, model, system_prompt=None, user_prompt=None, second_
     )
 
     return completion.to_dict()
-
-
-@tool
-def propose_operations(image_path: str, user_prompt: str = "Improve this image.") -> str:
-    """
-    Analyzes the provided image and suggests a series of enhancement operations.
-
-    Args:
-        image_path (str): The file path to the image to be analyzed.
-        user_prompt (str): Additional instructions or context provided by the user.
-
-    Returns:
-        str: A response from the AI art director suggesting operations to apply to the image.
-    """
-
-    system_prompt = (
-        "You are an AI art director. Your task is to propose a sequence of image enhancement operations "
-        "to transform the provided image according to the user's request. "
-        "You take strong decisions with important consequences on the image.\n"
-        "Consider the following possible operations:\n"
-        "- adjust_contrast\n"
-        "- adjust_exposure\n"
-        "- adjust_saturation\n"
-        "- adjust_shadows_highlights\n"
-        "- adjust_temperature\n"
-        "- adjust_tint\n"
-        "- adjust_hue_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]\n"
-        "- adjust_saturation_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]\n"
-        "- adjust_luminance_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]\n"
-        "- add_vignette\n"
-        "- add_grain\n"
-        "In particular, you should use the methods that adjust colors luminance staturation and hue. "
-        "I want at least 3 colors to be adjusted.\n"
-        "When citing the methods, describe qualitatively how much the effect should be applied : "
-        "a lot, bearly, to the maximum, ..."
-    )
-    response = call_to_llm(
-        image_path, model="Qwen/Qwen2.5-VL-72B-Instruct", system_prompt=system_prompt, user_prompt=user_prompt
-    )
-    return response["choices"][0]["message"]["content"]
 
 
 def concatenate_images_side_by_side(image_path1: str, image_path2: str) -> str:
@@ -124,6 +82,51 @@ def concatenate_images_side_by_side(image_path1: str, image_path2: str) -> str:
     new_img.save(temp_file, format="JPEG")
     temp_file.close()
     return temp_file.name
+
+
+def call_to_director(image_path: str, user_prompt):
+    describe_prompt = "describe this image. Include color distribution and exposition description"
+    image_description = call_to_llm(
+        "mistralai/Mistral-Small-3.1-24B-Instruct-2503",
+        image_path=image_path,
+        user_prompt=describe_prompt,
+        system_prompt="you are a helpful AI",
+    )
+
+    image_description = image_description["choices"][0]["message"]["content"]
+    system_prompt = (
+        "You are an AI art director. Your task is to propose a sequence of image enhancement operations "
+        "to transform the provided image according to the user's request. "
+        "You take strong decisions with important consequences on the image.\n"
+        "Consider the following possible operations:\n"
+        "- adjust_contrast\n"
+        "- adjust_exposure\n"
+        "- adjust_saturation\n"
+        "- adjust_shadows_highlights\n"
+        "- adjust_temperature\n"
+        "- adjust_tint\n"
+        "- adjust_hue_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]\n"
+        "- adjust_saturation_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]'n"
+        "- adjust_luminance_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]\n"
+        "- add_vignette\n"
+        "- add_grain\n"
+        "In particular, you should use the methods that adjust colors luminance staturation and hue. "
+        "I want at least 3 colors to be adjusted.\n"
+        "When citing the methods, you should say more or less and describe qualitatively"
+        " how much the effect should be applied : a lot, bearly, to the maximum, ..."
+        "DO NOT INCLUDE ANY NUMBER. SIMPLY DESCRIBE THE STRENGTH OF THE EFFECT."
+    )
+    print(image_description)
+    directions = call_to_llm(
+        "Qwen/Qwen3-235B-A22B",
+        user_prompt=f"my image is : {image_description}. The user request is {user_prompt}",
+        system_prompt=system_prompt,
+    )
+    directions_str = directions["choices"][0]["message"]["content"]
+    if "<think>" in directions_str and "</think>" in directions_str:
+        directions_str = re.sub(r"<think>.*?</think>", "", directions_str, flags=re.DOTALL)
+    directions["choices"][0]["message"]["content"] = directions_str
+    return directions["choices"][0]["message"]["content"]
 
 
 @tool
@@ -162,8 +165,8 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str, list
     )
 
     response = call_to_llm(
-        path_to_concat,
-        model="Qwen/Qwen2.5-VL-72B-Instruct",
+        "Qwen/Qwen2.5-VL-72B-Instruct",
+        image_path=path_to_concat,
         system_prompt=system_prompt,
         user_prompt=f"the user wishes for : {user_prompt}.\n The enhancement applied are {list_of_enhancements}",
     )
@@ -172,5 +175,7 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str, list
 
 
 if __name__ == "__main__":
-    res = propose_operations(image_path="small_test_image.jpg")
-    print(res["choices"][0]["message"]["content"])
+    # res = propose_operations(image_path="small_test_image.jpg")
+    # print(res["choices"][0]["message"]["content"])
+    directions = call_to_director("small_forest.jpg", "give it a winter vibe")
+    print(directions)
