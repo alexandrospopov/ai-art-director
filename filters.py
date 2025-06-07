@@ -399,8 +399,8 @@ def add_grain(img: Image.Image, amount: float = 0.05) -> Image.Image:
         img (PIL.Image.Image): Input image.
         amount (float, optional): Noise standard deviation in the `[0, 1]`
             domain.
-            You should not go beyond an amount of 0.1, as it is a lot.
-
+            An amount of 0.01 is barely noticeable. The max is 0.1.
+            In classic usage 0.02 is a good start.
     """
     noise = np.random.normal(0.0, amount, _to_numpy(img).shape).astype(np.float32)
     return _to_image(_to_numpy(img) + noise)
@@ -456,9 +456,9 @@ def demo_all(input_path: str, output_dir: str | Path = "demo_out") -> dict[str, 
         # "saturation": adjust_saturation(img, 1.1),
         # "shadows_highlights": adjust_shadows_highlights(img, 1.3, 0.5),
         # "temperature": adjust_temperature(img, -700),
-        "tint": adjust_tint(img, 150),
-        # "vignette": add_vignette(img, 0.2),
-        # "grain": add_grain(img, 0.1),
+        # "tint": adjust_tint(img, 150),
+        # "vignette": add_vignette(img, 0.1)  ,
+        "grain": add_grain(img, 0.02),
         # "blue_hue": adjust_hue_color(img, "yellow", 15),
         # "blue_saturation": adjust_saturation_color(img, "yellow", 1.2),
         # "blue_luminance": adjust_luminance_color(img, "yellow", 1.1),
