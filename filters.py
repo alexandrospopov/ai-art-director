@@ -1,24 +1,7 @@
-"""photo_adjustments.py
-
-A lightweight toolbox of common photo‑editing primitives—contrast, exposure,
-saturation, shadows/highlights, white‑balance (temperature/tint), per‑hue HSL
-corrections—and creative effects such as vignette, film‑grain, and simple
-median denoising.
-
-Tweak‑cheat
------------
-For any multiplicative parameter (``factor``, ``amount``, ``strength``) a 10 %
-increase is achieved by multiplying by **1.10** (or **0.90** to decrease). For
-exposure this is ≈ **± 0.14 EV** because ``2**0.14 ≈ 1.10``.  Temp ±500 mired and
-Tint ±20 roughly equal a 10 % slider nudge in Lightroom.
-
-Dependencies:
-    pip install pillow numpy
-"""
-
 from __future__ import annotations
 
 import math
+import os
 from pathlib import Path
 from typing import Literal
 
@@ -69,7 +52,7 @@ def adjust_contrast(img: Image.Image, factor: float) -> Image.Image:
         img (PIL.Image.Image): Input image.
         factor (float): Contrast multiplier. `1.0` leaves the image unchanged;
             values > 1 increase contrast and values < 1 flatten it.
-            A factor of 1.1 is a lot. A factor of 1.02 is barely noticeable.
+            A factor of 1.1 is a lot. A factor of 1.02 is a delicate modification .
 
 
     Returns:
@@ -87,7 +70,7 @@ def adjust_exposure(img: Image.Image, ev: float) -> Image.Image:
         img (PIL.Image.Image): Input image.
         ev (float): Exposure compensation in stops. `+1` doubles brightness,
             `‑1` halves it.
-            a ev of 0.2 is a lot. a ev of 0.05 is barely noticeable.
+            a ev of 0.2 is a lot. a ev of 0.05 is a delicate modification .
 
 
     Returns:
@@ -104,7 +87,7 @@ def adjust_saturation(img: Image.Image, factor: float) -> Image.Image:
         img (PIL.Image.Image): Input image.
         factor (float): Saturation multiplier. Values > 1 intensify colour and
             values < 1 desaturate. `factor *= 1.10` (or `0.90`) yields a ± 10 % change.
-            a factor of 2 is a lot. a factor of 1.1 is barely noticeable.
+            a factor of 2 is a lot. a factor of 1.1 is a delicate modification .
 
     Returns:
         PIL.Image.Image: Saturation‑adjusted image.
@@ -283,7 +266,7 @@ def adjust_hue_color(img: Image.Image, color: ColorName, delta: float) -> Image.
     Args:
         img (PIL.Image.Image): Input RGB image.
         color (ColorName): Colour family to target [red, orange, yellow, green, aqua, blue, purple, magenta]
-        delta (float): Hue shift *in degrees*. 15 degrees is good increment. 40 is a lot. 5 is barely noticeable.
+        delta (float): Hue shift *in degrees*. 15 degrees is good increment. 40 is a lot. 5 is a delicate modification .
 
     """
     return adjust_hsl_channel(img, _range_for(color), h_delta=delta)
@@ -312,7 +295,7 @@ def adjust_luminance_color(img: Image.Image, color: ColorName, factor: float) ->
     Args:
         img (PIL.Image.Image): Input image.
         color (ColorName): Colour family to target[red, orange, yellow, green, aqua, blue, purple, magenta]
-        factor (float): Luminance multiplier. A factor of 0.5 is a lot, 0.9 is barely noticeable.
+        factor (float): Luminance multiplier. A factor of 0.5 is a lot, 0.9 is a delicate modification .
 
     Returns:
         PIL.Image.Image: Image with adjusted luminance for the selected colour.
@@ -378,7 +361,7 @@ def add_vignette(img: Image.Image, strength: float = 0.5) -> Image.Image:
         img (PIL.Image.Image): Input image.
         strength (float, optional): Corner darkening amount in `[0, 1]`. Defaults
             to `0.5`. `strength *= 1.10` boosts the vignette ~10 %.
-        A strength of 1 is the maximum a lot. Under 0.2 is barely noticeable.
+        A strength of 1 is the maximum a lot. Under 0.2 is a delicate modification .
     Returns:
         PIL.Image.Image: Vignetted image.
     """
@@ -399,7 +382,7 @@ def add_grain(img: Image.Image, amount: float = 0.05) -> Image.Image:
         img (PIL.Image.Image): Input image.
         amount (float, optional): Noise standard deviation in the `[0, 1]`
             domain.
-            An amount of 0.01 is barely noticeable. The max is 0.1.
+            An amount of 0.01 is a delicate modification . The max is 0.1.
             In classic usage 0.02 is a good start.
     """
     noise = np.random.normal(0.0, amount, _to_numpy(img).shape).astype(np.float32)
@@ -407,14 +390,22 @@ def add_grain(img: Image.Image, amount: float = 0.05) -> Image.Image:
 
 
 @tool
-def save_image(img: Image.Image, path: str) -> None:
-    """Save a PIL image to a file.
+def save_image(img: Image.Image, output_directory: str) -> None:
+    """Save a PIL image as a JPEG file in the specified directory.
+
+    The image will be saved with a filename of the form "trial_N.jpeg", where N is the
+    current count of JPEG files in the directory.
 
     Args:
         img (PIL.Image.Image): Image to save.
-        path (str): File path where the image will be saved.
+        output_directory (str): Path to the output directory.
+
+    Returns:
+        str: The full path to the saved image file.
     """
-    img.save(path, format="JPEG", quality=95)
+    nb_iter = str(len([f for f in os.listdir(output_directory) if f.endswith(".jpeg")]))
+    output_path = os.path.join(output_directory, f"trial_{nb_iter}.jpeg")
+    img.save(output_path, format="JPEG", quality=95)
 
 
 @tool
@@ -451,17 +442,20 @@ def demo_all(input_path: str, output_dir: str | Path = "demo_out") -> dict[str, 
     img = Image.open(input_path).convert("RGB")
 
     effects = {
-        # "contrast": adjust_contrast(img, 1.1),
-        # "exposure": adjust_exposure(img, 0.05),
-        # "saturation": adjust_saturation(img, 1.1),
-        # "shadows_highlights": adjust_shadows_highlights(img, 1.3, 0.5),
-        # "temperature": adjust_temperature(img, -700),
-        # "tint": adjust_tint(img, 150),
-        # "vignette": add_vignette(img, 0.1)  ,
+        "contrast": adjust_contrast(img, 0.7),
+        "exposure": adjust_exposure(img, 0.05),
+        # "saturation": adjust_saturation(img, ),
+        "shadows_highlights": adjust_shadows_highlights(img, 1.3, 0.5),
+        "temperature": adjust_temperature(img, -700),
+        "tint": adjust_tint(img, 150),
+        "vignette": add_vignette(img, 0.1),
         "grain": add_grain(img, 0.02),
-        # "blue_hue": adjust_hue_color(img, "yellow", 15),
-        # "blue_saturation": adjust_saturation_color(img, "yellow", 1.2),
-        # "blue_luminance": adjust_luminance_color(img, "yellow", 1.1),
+        "blue_saturation": adjust_saturation_color(img, "yellow", 0.2),
+        # "blue_saturation": adjust_saturation_color(img, "green", 0.2),
+        # "blue_saturation": adjust_saturation_color(img, "orange", 0.2),
+        # "blue_hue": adjust_hue_color(img, "blue", 15),
+        # "blue_saturation": adjust_saturation_color(img, "blue", 1.2),
+        "blue_luminance": adjust_luminance_color(img, "yellow", 1.1),
     }
 
     saved: dict[str, str] = {}
