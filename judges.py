@@ -96,6 +96,10 @@ def call_to_director(image_path: str, user_prompt):
     image_description = image_description["choices"][0]["message"]["content"]
     system_prompt = (
         "You are an AI art director. Your task is to propose a sequence of image enhancement operations "
+        "Overall, the modifications you are making aim at mimicking the instagm filters effect."
+        "You like to enhance pictures to make them full of light and color, happy and vibrant."
+        "The vignette effet and the grain should be use be scarcity, only if makes a lot of sense."
+        "Be careful to not overdue the shadows as well."
         "to transform the provided image according to the user's request. "
         "You take strong decisions with important consequences on the image.\n"
         "Consider the following possible operations:\n"
@@ -130,12 +134,12 @@ def call_to_director(image_path: str, user_prompt):
 
 
 @tool
-def critic(new_image_path: str, original_image_path: str, user_prompt: str, list_of_enhancements: str) -> str:
+def critic(output_directory: str, original_image_path: str, user_prompt: str, list_of_enhancements: str) -> str:
     """
     Evaluates the new image against the old image and provides feedback.
 
     Args:
-        new_image_path (str): The file path to the new image.
+        output_directory (str): Path to the output directory
         original_image_path (str): The file path to the new image.
         user_prompt (str): Additional instructions or context provided by the user.
         list_of_enhancements (str): the list of of all enhancements applied to the image.
@@ -144,24 +148,43 @@ def critic(new_image_path: str, original_image_path: str, user_prompt: str, list
         str: Feedback on the changes made to the image.
     """
     print("list_of_enhancements: ", list_of_enhancements)
+    # Find all files matching the pattern "trial_i" where i is an integer and extension is .jpeg
+    trial_files = [f for f in os.listdir(output_directory) if re.match(r"trial_\d+\.jpeg$", f)]
+    # Sort files by descending integer i
+    trial_files.sort(key=lambda x: (int(m.group(1)) if (m := re.search(r"trial_(\d+)\.jpeg$", x)) else -1))
+    new_image_path = os.path.join(output_directory, trial_files[0])
     path_to_concat = concatenate_images_side_by_side(original_image_path, new_image_path)
 
     # iterate each time between the ops and the critic
 
     system_prompt = (
-        "You are an AI art critic. "
-        "You will be provided a single image, consisting of 2 images side by side.\n"
+        "You are an AI art critic. You provide a list adjustements to make the enhancements better\n"
+        "You will be provided a single image, consisting of 2 images side by side."
         "On the left side, you will see the original image, "
         "and on the right side, you will see the new image enhanced by AI.\n"
         "Your task is to evaluate the changes made to image 2.\n"
         "You will be provided with a prompt that describes the user's request to improve the image.\n"
         "Does the image 2 respect the desire of the user ?\n"
-        "The application of the filters must be noticeable."
-        "The minimal increment is 10%. Don't be too subtle.\n"
-        "You can refine the list of the modifications to apply to the image.\n"
-        "You must not invent new methods or tools, only use the ones provided.\n"
-        "You must include in your answer a rate out of 10 of the image."
-        "If you rate the rate above 8/10, just accept the image as it is."
+        "The application of the filters must be noticeable, but the effect should not look surreal."
+        "Overall, the modifications you are making aim at mimicking the instagm filters effect."
+        "Unless, specifically asked the contrary, you should stick to clear pictures full of light. "
+        "The vignette effet and the grain should be use be scarcity, only if makes a lot of sense."
+        "Here are the possible operations:\n"
+        "- adjust_contrast\n"
+        "- adjust_exposure\n"
+        "- adjust_saturation\n"
+        "- adjust_shadows_highlights\n"
+        "- adjust_temperature\n"
+        "- adjust_tint\n"
+        "- adjust_hue_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]\n"
+        "- adjust_saturation_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]'n"
+        "- adjust_luminance_color colors are [red, orange, yellow, green, aqua, blue, purple, magenta]\n"
+        "- add_vignette\n"
+        "- add_grain\n"
+        "FOR EACH, you must say what should be done to improve the image"
+        "Tool: Contrast\n"
+        "Suggestion: Reduce significantly the contrast\n"
+        "Confidence: 0.9\n"
     )
 
     response = call_to_llm(
