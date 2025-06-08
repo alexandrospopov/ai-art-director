@@ -10,33 +10,27 @@ from agents import run_photo_enchancement_agent
 
 
 def process_image_with_agents(image: Image.Image, prompt: str):
-    """Stream intermediate steps **and** the agent's stdout / stderr logs."""
-    # 🔧 1. Create temp dir & paths
     temp_dir = tempfile.mkdtemp(prefix="gradio_aiart_")
     input_path = os.path.join(temp_dir, "input.jpg")
-    output_path = os.path.join(temp_dir, "output.jpg")
-
-    # 💾 2. Persist original upload
+    output_directory = temp_dir
     image.save(input_path)
 
-    # 🖼️ 3. Yield the original image immediately
-    yield image, "Original image uploaded. Starting enhancement…"
+    yield [image], "Original image uploaded. Starting enhancement…"
 
-    # 📝 4. Capture logs while the agent runs
     log_buffer = io.StringIO()
     with contextlib.redirect_stdout(log_buffer), contextlib.redirect_stderr(log_buffer):
         _ = run_photo_enchancement_agent(
             prompt,
             image_path=input_path,
-            output_path=output_path,
+            output_directory=output_directory,
         )
 
-    # 🧾 All logs produced by the agent
-    logs = log_buffer.getvalue()
+    # Find all images in temp_dir (sorted by name)
+    image_files = sorted([os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith((".jpg", ".png"))])
+    images = [Image.open(p) for p in image_files]
 
-    # 🖼️ 5. Yield the final image plus the complete logs
-    final_image = Image.open(output_path)
-    yield final_image, f"✅ Enhancement finished.\n\n--- Agent Logs ---\n{logs}"
+    logs = log_buffer.getvalue()
+    yield images, f"✅ Enhancement finished.\n\n--- Agent Logs ---\n{logs}"
 
 
 with gr.Blocks(title="AI Art Director • Agent Workflow") as demo:
@@ -53,16 +47,15 @@ with gr.Blocks(title="AI Art Director • Agent Workflow") as demo:
             prompt_input = gr.Textbox(label="Describe the vibe you want", placeholder="e.g. dreamy, vintage, vibrant…")
             submit_btn = gr.Button("Go!")
         with gr.Column():
-            streamed_image = gr.Image(label="Image Progress")
+            gallery = gr.Gallery(label="Image Progress", show_label=True)
             agent_logs = gr.Textbox(label="Agent Logs", lines=18, interactive=False)
 
     submit_btn.click(
         process_image_with_agents,
         inputs=[image_input, prompt_input],
-        outputs=[streamed_image, agent_logs],
+        outputs=[gallery, agent_logs],
     )
 
-    # Allow multiple users to queue without blocking streaming
     demo.queue()
 
 if __name__ == "__main__":
