@@ -11,29 +11,35 @@ import judges as jdg
 HUGGING_FACE_TOKEN = os.environ["HUGGING_FACE_TOKEN"]
 
 image_operator_model = InferenceClientModel(
-    model_id="Qwen/Qwen3-30B-A3B",
+    model_id="Qwen/Qwen3-32B",
     provider="nebius",
     token=HUGGING_FACE_TOKEN,
     max_tokens=5000,
 )
 
-picture_operator_prompt = (
-    "You are an image processing agent, and you can perform operations on images, such as adjusting contrast, "
-    "exposure, saturation, shadows/highlights, temperature, tint, hue/color, saturation/color, luminance/color."
-    "You take as input the path to the original image, the path to the output image, "
-    "the user query, that will serve as a reference, and a list of enhancements to apply to the image."
-    "You must always use the original image when you start a set of transformations."
-    "DO NOT USE previously created images."
-    "This list comes from an art director. You must apply the operations in the list "
-    "For each operation, you will receive a qualitative estimation of the change, "
-    "like 'too much', 'too little', or 'just right'."
-    "Use your knowledge of the tools to adjuste the parameters."
-    "Execute only the operations that are proposed as tools. Do not invent new methods or tools."
-    "After applying the operations, you must pass the resulting image to the critic for evaluation."
-    "The critic will provide feedback on whether the change is too much, too little, or just right."
-    "This will help you find just the right variable for each operation."
-    "If the score the critic gives is higher than 7, you can save the image."
-)
+picture_operator_prompt = """
+    You are an image processing agent capable of applying visual enhancements to images.
+    Your task is to process images based on directives from an art director.
+    You can adjust the following parameters: contrast, exposure, saturation,
+    shadows/highlights, temperature, tint, hue, saturation (per color), and luminance (per color).
+
+    Inputs:
+    Original image path
+    Output image path
+    User query (serves as creative reference)
+    Ordered list of enhancements to apply
+
+    Rules:
+    Always begin with the original image for each set of transformations.
+    Never reuse previously processed images as a starting point.
+    Apply only the operations explicitly listed. Do not invent or introduce new tools or methods.
+    For each enhancement, you'll receive a qualitative assessment such as “too much,” “too little,” or “just right.”
+    Use your understanding of image processing tools to translate qualitative feedback into quantitative adjustments.
+    After completing the initial enhancement list, pass the resulting image to the critic for evaluation.
+    Adjust parameters based on the critic’s feedback.
+    Iterate until the critic responds with “just right” for all changes.
+    Once all enhancements are satisfactory, your task is complete.
+    """
 
 picture_operator = CodeAgent(
     tools=[
@@ -56,10 +62,11 @@ picture_operator = CodeAgent(
     name="PictureOperator",
     description=picture_operator_prompt,
     managed_agents=[],
+    max_steps=15,
 )
 
 
-def resize_longest_side_to_500(image_path, output_path):
+def resize_longest_side_to_500(image_path):
     """
     Resize the image so that its longest side is 500 pixels, preserving aspect ratio.
 
@@ -67,6 +74,8 @@ def resize_longest_side_to_500(image_path, output_path):
         image_path (str): Path to the input image.
         output_path (str): Path to save the resized image.
     """
+    base, ext = os.path.splitext(image_path)
+    output_path = f"{base}_resized{ext}"
     with Image.open(image_path) as img:
         width, height = img.size
         if width >= height:
@@ -77,12 +86,13 @@ def resize_longest_side_to_500(image_path, output_path):
             new_width = int((500 / height) * width)
         resized_img = img.resize((new_width, new_height), Image.LANCZOS)
         resized_img.save(output_path)
+    return output_path
 
 
 def run_photo_enchancement_agent(
     query: str,
     image_path: str = "small_test_image.jpg",
-    output_path: str = "output.jpg",
+    output_directory: str | None = None,
 ):
     """
     Run the photo enhancement agent with the provided query and image path.
@@ -94,16 +104,17 @@ def run_photo_enchancement_agent(
     """
 
     # Create a temporary file for the resized image
-    with tempfile.NamedTemporaryFile(suffix=".jpg", delete=False) as tmp:
-        resized_image_path = tmp.name
-    resize_longest_side_to_500(image_path=image_path, output_path=resized_image_path)
+    if not output_directory:
+        output_directory = tempfile.mkdtemp()
+
+    resized_image_path = resize_longest_side_to_500(image_path=image_path)
     image_path = resized_image_path
     directions = jdg.call_to_director(image_path, query)
     picture_operator.run(
         picture_operator_prompt + "\n\nuser_query : " + directions,
         additional_args={
             "image_path": image_path,
-            "output_path": output_path,
+            "output_directory": output_directory,
         },
     )
 
@@ -135,13 +146,14 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    default_output_path = os.path.join(tempfile.mkdtemp(), "output.jpg")
+
+    default_directory = tempfile.mkdtemp()
     if args.agent == "ops":
         picture_operator.run(
             args.query,
             additional_args={
                 "image_path": args.image_path,
-                "output_path": default_output_path,
+                "output_directory": default_directory,
             },
         )
     elif args.agent == "dir":
@@ -150,7 +162,7 @@ if __name__ == "__main__":
             picture_operator_prompt + "start with those instructions :" + directions,
             additional_args={
                 "image_path": args.image_path,
-                "output_path": default_output_path,
+                "output_path": default_directory,
                 "enhancements": directions,
                 "user_query": args.query,
             },
