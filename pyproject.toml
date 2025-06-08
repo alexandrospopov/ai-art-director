@@ -10,5 +10,6 @@ dependencies = [
     "openai>=1.84.0",
     "opencv-python>=4.11.0.86",
     "pillow>=11.2.1",
+    "replicate>=1.0.7",
     "smolagents[telemetry,toolkit]>=1.17.0",
 ]
