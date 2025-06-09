@@ -23,7 +23,7 @@ def process_image_with_agents(image: Image.Image, prompt: str):
 
     # Find all images in temp_dir (sorted by name)
     image_files = sorted([os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith((".jpg", ".png"))])
-    images = [Image.open(p) for p in image_files]
+    images = [(Image.open(p), os.path.basename(p)) for p in image_files]
 
     yield images, "Enhancement finished."
 
@@ -48,7 +48,7 @@ with gr.Blocks(title="AI Art Director • Agent Workflow") as demo:
     submit_btn.click(
         process_image_with_agents,
         inputs=[image_input, prompt_input],
-        outputs=[gallery],
+        outputs=[gallery, "test"],
     )
 
     demo.queue()
