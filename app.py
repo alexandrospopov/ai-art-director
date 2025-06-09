@@ -48,7 +48,7 @@ with gr.Blocks(title="AI Art Director • Agent Workflow") as demo:
     submit_btn.click(
         process_image_with_agents,
         inputs=[image_input, prompt_input],
-        outputs=gallery,
+        outputs=[gallery],
     )
 
     demo.queue()
