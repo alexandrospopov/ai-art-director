@@ -1,5 +1,3 @@
-import contextlib
-import io
 import os
 import tempfile
 
@@ -17,20 +15,17 @@ def process_image_with_agents(image: Image.Image, prompt: str):
 
     yield [image], "Original image uploaded. Starting enhancement…"
 
-    log_buffer = io.StringIO()
-    with contextlib.redirect_stdout(log_buffer), contextlib.redirect_stderr(log_buffer):
-        _ = run_photo_enchancement_agent(
-            prompt,
-            image_path=input_path,
-            output_directory=output_directory,
-        )
+    run_photo_enchancement_agent(
+        prompt,
+        image_path=input_path,
+        output_directory=output_directory,
+    )
 
     # Find all images in temp_dir (sorted by name)
     image_files = sorted([os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith((".jpg", ".png"))])
     images = [Image.open(p) for p in image_files]
 
-    logs = log_buffer.getvalue()
-    yield images, f"✅ Enhancement finished.\n\n--- Agent Logs ---\n{logs}"
+    yield images, "Enhancement finished."
 
 
 with gr.Blocks(title="AI Art Director • Agent Workflow") as demo:
