@@ -1,5 +1,3 @@
-import contextlib
-import io
 import os
 import tempfile
 
@@ -17,28 +15,27 @@ def process_image_with_agents(image: Image.Image, prompt: str):
 
     yield [image], "Original image uploaded. Starting enhancement…"
 
-    log_buffer = io.StringIO()
-    with contextlib.redirect_stdout(log_buffer), contextlib.redirect_stderr(log_buffer):
-        _ = run_photo_enchancement_agent(
-            prompt,
-            image_path=input_path,
-            output_directory=output_directory,
-        )
+    run_photo_enchancement_agent(
+        prompt,
+        image_path=input_path,
+        output_directory=output_directory,
+    )
 
-    # Find all images in temp_dir (sorted by name)
-    image_files = sorted([os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith((".jpg", ".png"))])
-    images = [Image.open(p) for p in image_files]
+    image_files = sorted(
+        [os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith(".jpeg")], key=os.path.getmtime
+    )
+    images = [(Image.open(p), os.path.basename(p)) for p in image_files]
 
-    logs = log_buffer.getvalue()
-    yield images, f"✅ Enhancement finished.\n\n--- Agent Logs ---\n{logs}"
+    yield images, "✅ Enhancement finished."
 
 
 with gr.Blocks(title="AI Art Director • Agent Workflow") as demo:
     gr.Markdown(
         "# AI Art Director\n"
         "Upload an image and describe the vibe you want.\n"
-        "The agent will propose, apply, and critique edits to match your vision "
-        "– and you'll see progress **and logs** live!"
+        "The agent will propose, apply, and critique edits to match your vision.\n"
+        "🕒 Disclaimer: The agent takes a LONG time (around 10 minutes).\n"
+        "📜 You can follow the activity through logs."
     )
 
     with gr.Row():
@@ -48,12 +45,12 @@ with gr.Blocks(title="AI Art Director • Agent Workflow") as demo:
             submit_btn = gr.Button("Go!")
         with gr.Column():
             gallery = gr.Gallery(label="Image Progress", show_label=True)
-            agent_logs = gr.Textbox(label="Agent Logs", lines=18, interactive=False)
+            status_box = gr.Textbox(label="Status", lines=2, interactive=False)
 
     submit_btn.click(
         process_image_with_agents,
         inputs=[image_input, prompt_input],
-        outputs=[gallery, agent_logs],
+        outputs=[gallery, status_box],  # ✅ Fixed: include both outputs
     )
 
     demo.queue()

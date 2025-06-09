@@ -11,10 +11,7 @@ import judges as jdg
 HUGGING_FACE_TOKEN = os.environ["HUGGING_FACE_TOKEN"]
 
 image_operator_model = InferenceClientModel(
-    model_id="Qwen/Qwen3-32B",
-    provider="nebius",
-    token=HUGGING_FACE_TOKEN,
-    max_tokens=5000,
+    model_id="Qwen/Qwen3-32B", provider="nebius", token=HUGGING_FACE_TOKEN, max_tokens=5000
 )
 
 picture_operator_prompt = """
@@ -62,7 +59,7 @@ picture_operator = CodeAgent(
     name="PictureOperator",
     description=picture_operator_prompt,
     managed_agents=[],
-    max_steps=15,
+    max_steps=7,
 )
 
 
