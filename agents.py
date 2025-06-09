@@ -59,7 +59,6 @@ picture_operator = CodeAgent(
     name="PictureOperator",
     description=picture_operator_prompt,
     managed_agents=[],
-    max_steps=15,
 )
 
 
