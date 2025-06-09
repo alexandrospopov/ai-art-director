@@ -33,7 +33,8 @@ with gr.Blocks(title="AI Art Director • Agent Workflow") as demo:
         "# AI Art Director\n"
         "Upload an image and describe the vibe you want.\n"
         "The agent will propose, apply, and critique edits to match your vision "
-        "– and you'll see progress **and logs** live!"
+        "\nDisclaimer, the agent takes a LONG time (around 10 minutes)."
+        "You can follow the activity through logs."
     )
 
     with gr.Row():
@@ -43,12 +44,11 @@ with gr.Blocks(title="AI Art Director • Agent Workflow") as demo:
             submit_btn = gr.Button("Go!")
         with gr.Column():
             gallery = gr.Gallery(label="Image Progress", show_label=True)
-            agent_logs = gr.Textbox(label="Agent Logs", lines=18, interactive=False)
 
     submit_btn.click(
         process_image_with_agents,
         inputs=[image_input, prompt_input],
-        outputs=[gallery, agent_logs],
+        outputs=[gallery],
     )
 
     demo.queue()
