@@ -22,7 +22,7 @@ def process_image_with_agents(image: Image.Image, prompt: str):
     )
 
     image_files = sorted(
-        [os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith((".jpg", ".png"))], key=os.path.getmtime
+        [os.path.join(temp_dir, f) for f in os.listdir(temp_dir) if f.endswith(".jpeg")], key=os.path.getmtime
     )
     images = [(Image.open(p), os.path.basename(p)) for p in image_files]
 
