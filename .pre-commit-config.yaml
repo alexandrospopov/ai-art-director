@@ -29,10 +29,10 @@ repos:
       - id: mypy
         args: ["--ignore-missing-imports", "--install-types", "--non-interactive"]
 
-  # - repo: https://github.com/PyCQA/isort
-  #   rev: 5.13.2
-  #   hooks:
-  #     - id: isort
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
 
   - repo: https://github.com/PyCQA/bandit
     rev: 1.7.7
