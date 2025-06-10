@@ -154,7 +154,7 @@ def critic(output_directory: str, original_image_path: str, user_prompt: str, li
     trial_files = [f for f in os.listdir(output_directory) if re.match(r"trial_\d+\.jpeg$", f)]
     # Sort files by descending integer i
     trial_files.sort(key=lambda x: (int(m.group(1)) if (m := re.search(r"trial_(\d+)\.jpeg$", x)) else -1))
-    new_image_path = os.path.join(output_directory, trial_files[0])
+    new_image_path = os.path.join(output_directory, trial_files[-1])
     path_to_concat = concatenate_images_side_by_side(original_image_path, new_image_path)
 
     # iterate each time between the ops and the critic
