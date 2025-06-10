@@ -294,7 +294,7 @@ def adjust_saturation_color(
         li (np.ndarray): Lightness channel `[0, 1]`.
         color (ColorName): Colour family to target [red, orange, yellow, green, aqua, blue, purple, magenta]
         factor (float): Saturation multiplier. Factor under +/- 0.1 are delicate modifications.
-            Factor of 0.5 are very strong variations.
+            Factor of 0.2 and 1.8 are very strong variations.
 
     Returns:
         Tuple[np.ndarray, np.ndarray, np.ndarray]: Hue, Saturation, Lightness

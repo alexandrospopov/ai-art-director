@@ -182,7 +182,7 @@ picture_operator_prompt = """
         factor=1.05  # Slightly increased depth for balloon patterns
     )
 
-    img = adjust_saturation(img=img, factor=1.5  # "Boosted a lot" to enhance vibrancy
+    img = adjust_saturation(img=img, factor=1.8  # "Boosted a lot" to enhance vibrancy
     )
 
     img = adjust_temperature(img=img, delta=500  # Warm up by 500 mireds for golden-hour glow
@@ -206,7 +206,7 @@ picture_operator_prompt = """
         s=s,
         li=li,
         color='red',
-        factor=1.3  # "Significantly" boosted saturation
+        factor=1.4  # "Significantly" boosted saturation
     )
     h, s, li = adjust_luminance_color(
         h=h,
@@ -274,7 +274,7 @@ picture_operator = CodeAgent(
     name="PictureOperator",
     description=picture_operator_prompt,
     managed_agents=[],
-    max_steps=7,
+    max_steps=4,
 )
 
 
