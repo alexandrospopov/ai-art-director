@@ -173,9 +173,8 @@ picture_operator_prompt = """
     img = load_image(path=image_path)
 
     # Apply global adjustments in RGB space
-    img = adjust_exposure(
-        img=img,
-        ev=0.1  # Moderate brightening for golden-hour amplification
+    img = adjust_exposure(img=img,
+    ev=0.1  # Moderate brightening for golden-hour amplification
     )
 
     img = adjust_contrast(
@@ -183,19 +182,13 @@ picture_operator_prompt = """
         factor=1.05  # Slightly increased depth for balloon patterns
     )
 
-    img = adjust_saturation(
-        img=img,
-        factor=1.5  # "Boosted a lot" to enhance vibrancy
+    img = adjust_saturation(img=img, factor=1.5  # "Boosted a lot" to enhance vibrancy
     )
 
-    img = adjust_temperature(
-        img=img,
-        delta=500  # Warm up by 500 mireds for golden-hour glow
+    img = adjust_temperature(img=img, delta=500  # Warm up by 500 mireds for golden-hour glow
     )
 
-    img = adjust_shadows_highlights(
-        img=img,
-        shadow=1.1,  # Slight shadow lifting to reveal textures
+    img = adjust_shadows_highlights(img=img, shadow=1.1,  # Slight shadow lifting to reveal textures
         highlight=0.9  # Tame highlights to preserve sky colors
     )
 
