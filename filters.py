@@ -139,7 +139,7 @@ def adjust_shadows_highlights(
 # ---------------------------------------------------------------------------
 
 
-@tool
+# @tool
 def adjust_temperature(img: Image.Image, delta: int) -> Image.Image:
     """Shift white‑balance temperature.
 
@@ -157,7 +157,7 @@ def adjust_temperature(img: Image.Image, delta: int) -> Image.Image:
     return _to_image(arr * np.array([r_scale, 1.0, b_scale], dtype=np.float32))
 
 
-@tool
+# @tool
 def adjust_tint(img: Image.Image, delta: int) -> Image.Image:
     """Shift white‑balance tint between green and magenta.
 
@@ -303,7 +303,6 @@ def adjust_saturation_color(
     return adjust_hsl_channel(h, s, li, _range_for(color), s_factor=factor)
 
 
-@tool
 def adjust_luminance_color(
     h: np.ndarray, s: np.ndarray, li: np.ndarray, color: ColorName, factor: float
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -314,7 +313,7 @@ def adjust_luminance_color(
         s (np.ndarray): Saturation channel `[0, 1]`.
         li (np.ndarray): Lightness channel `[0, 1]`.
         color (ColorName): Colour family to target[red, orange, yellow, green, aqua, blue, purple, magenta]
-        factor (float): Luminance multiplier. A factor of 0.5 is a lot, 0.9 is a delicate modification .
+        factor (float): Luminance multiplier. The allowed maximum is 0.1 variation. 0.05 is a delicate modication.
 
     Returns:
         Tuple[np.ndarray, np.ndarray, np.ndarray]: Hue, Saturation, Lightness
@@ -450,7 +449,7 @@ def load_image(path: str) -> Image.Image:
 # ---------------------------------------------------------------------------
 
 
-def demo_all(input_path: str, output_dir: str | Path = "demo_out") -> dict[str, str]:
+def demo_all(input_path: str, output_dir: str | Path = "demo_out") -> None:
     """Run every adjustment once and save results.
 
     Args:
@@ -461,36 +460,63 @@ def demo_all(input_path: str, output_dir: str | Path = "demo_out") -> dict[str, 
     Returns:
         Dict[str, str]: Mapping of effect name to the saved file path.
     """
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    img = Image.open(input_path).convert("RGB")
+    img = load_image(path=input_path)
 
-    effects = {
-        "contrast": adjust_contrast(img, 0.7),
-        "exposure": adjust_exposure(img, 0.05),
-        # "saturation": adjust_saturation(img, ),
-        "shadows_highlights": adjust_shadows_highlights(img, 1.3, 0.5),
-        "temperature": adjust_temperature(img, -700),
-        "tint": adjust_tint(img, 150),
-        "vignette": add_vignette(img, 0.1),
-        "grain": add_grain(img, 0.02),
-        "blue_saturation": adjust_saturation_color(img, "yellow", 0.2),
-        # "blue_saturation": adjust_saturation_color(img, "green", 0.2),
-        # "blue_saturation": adjust_saturation_color(img, "orange", 0.2),
-        # "blue_hue": adjust_hue_color(img, "blue", 15),
-        # "blue_saturation": adjust_saturation_color(img, "blue", 1.2),
-        "blue_luminance": adjust_luminance_color(img, "yellow", 1.1),
-    }
+    # Apply global RGB adjustments in sequence
+    # 2. Reduced exposure (moderately)
+    img = adjust_exposure(img=img, ev=0.05)  # Decreased from 0.1 as per feedback
 
-    saved: dict[str, str] = {}
-    stem = Path(input_path).stem
-    for name, im in effects.items():
-        file_path = output_path / f"{stem}_{name}.jpg"
-        im.save(file_path, quality=95)
-        im.show(title=name)
-        saved[name] = str(file_path)
+    # 1. Reduced contrast (significantly)
+    img = adjust_contrast(img=img, factor=1.03)  # From 1.1 to 1.03 (delicate contrast increase)
 
-    return saved
+    # 3. Reduced global saturation
+    img = adjust_saturation(img=img, factor=1.1)  # From 1.2 to 1.1 (moderate enhancement)
+
+    # 5. Subtler shadows/highlights
+    img = adjust_shadows_highlights(img=img, shadow=1.05, highlight=0.95)  # From 1.1  # From 0.9 to 0.95
+
+    # 7. Remove vignette
+    img = add_vignette(img=img, strength=0.0)  # Set to min per feedback
+
+    # 8. Remove grain
+    img = add_grain(img=img, amount=0.0)  # No grain
+
+    # Convert to HSL for color-specific modifications
+    h, s, li = rgb_to_hsl(img)
+
+    # 3(a) Reduced blue saturation
+    h, s, li = adjust_saturation_color(h=h, s=s, li=li, color="blue", factor=1.3)  # From 1.5 to 1.3
+
+    # 3(b) Reduced red & yellow saturation
+    for color in ["red", "yellow"]:
+        h, s, li = adjust_saturation_color(h=h, s=s, li=li, color=color, factor=1.1)  # From 1.2 to 1.1
+
+    # 4. Adjusted hue (reduced intensity)
+    # Red/orange toward amber
+    h, s, li = adjust_hue_color(h=h, s=s, li=li, color="red", delta=10)  # From 15° to 10°
+    h, s, li = adjust_hue_color(h=h, s=s, li=li, color="orange", delta=10)  # From 15° to 10°
+
+    # Blue cooling (reduced effect)
+    h, s, li = adjust_hue_color(h=h, s=s, li=li, color="blue", delta=-10)  # From -15° to -10°
+
+    # 6. Adjusted luminance (reduced effect)
+    # Blue luminance boost (reduced)
+    # h, s, li = adjust_luminance_color(
+    #     h=h, s=s, li=li,
+    #     color='blue',
+    #     factor=1.05  # From 1.1 to 1.05
+    # )
+
+    # # Orange luminance (adjusted)
+    # h, s, li = adjust_luminance_color(
+    #     h=h, s=s, li=li,
+    #     color='orange',
+    #     factor=0.95  # From 0.9 to 0.95
+    # )
+
+    # Save the processed image
+    print(output_dir)
+    save_image(h, s, li, output_directory=output_dir)
 
 
 if __name__ == "__main__":
@@ -511,7 +537,4 @@ if __name__ == "__main__":
     if not args.output_dir:
         args.output_dir = tempfile.mkdtemp(prefix="photo_adjustments_")
 
-    results = demo_all(args.input, args.output_dir)
-
-    for effect, path in results.items():
-        print(f"{effect}: {path}")
+    demo_all(args.input, args.output_dir)
