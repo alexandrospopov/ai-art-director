@@ -211,7 +211,6 @@ def rgb_to_hsl(img: Image.Image) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return h, s, li
 
 
-@tool
 def hsl_to_rgb(h: np.ndarray, s: np.ndarray, li: np.ndarray) -> np.ndarray:
     """Vectorised HSL→RGB conversion.
 
@@ -412,19 +411,22 @@ def add_grain(img: Image.Image, amount: float = 0.05) -> Image.Image:
 
 
 @tool
-def save_image(img: Image.Image, output_directory: str) -> None:
-    """Save a PIL image as a JPEG file in the specified directory.
+def save_image(h: np.ndarray, s: np.ndarray, li: np.ndarray, output_directory: str) -> None:
+    """Save an HSL image as a JPEG file in the specified directory.
 
     The image will be saved with a filename of the form "trial_N.jpeg", where N is the
     current count of JPEG files in the directory.
 
     Args:
-        img (PIL.Image.Image): Image to save.
+        h (np.ndarray): Hue channel `[0, 1]`.
+        s (np.ndarray): Saturation channel `[0, 1]`.
+        li (np.ndarray): Lightness channel `[0, 1]`.
         output_directory (str): Path to the output directory.
 
     Returns:
         str: The full path to the saved image file.
     """
+    img = hsl_to_rgb(h, s, li)
     nb_iter = str(len([f for f in os.listdir(output_directory) if f.endswith(".jpeg")]))
     output_path = os.path.join(output_directory, f"trial_{nb_iter}.jpeg")
     img.save(output_path, format="JPEG", quality=95)
