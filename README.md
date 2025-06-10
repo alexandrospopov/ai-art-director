@@ -10,6 +10,9 @@ pinned: false
 license: apache-2.0
 tags:
     - agent-demo-track
+video:
+    - https://youtu.be/JKPm7TI9vjI
+
 ---
 
 
@@ -31,5 +34,3 @@ Nebius endpoints (tool hosting)
 
 Hackathon track:
 Agent Demo Track
-
-Video link: https://youtu.be/JKPm7TI9vjI
