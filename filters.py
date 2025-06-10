@@ -180,16 +180,18 @@ def adjust_tint(img: Image.Image, delta: int) -> Image.Image:
 # ---------------------------------------------------------------------------
 
 
-def _rgb_to_hsl(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+@tool
+def rgb_to_hsl(img: Image.Image) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Vectorised RGB→HSL conversion.
 
     Args:
-        arr (np.ndarray): Float array in `[0, 1]` with shape *(H, W, 3)*.
+        img: PIL.Image.Image: 8‑bit RGB image.
 
     Returns:
         Tuple[np.ndarray, np.ndarray, np.ndarray]: Hue, Saturation, Lightness
         arrays each in `[0, 1]` and shape *(H, W)*.
     """
+    arr = _to_numpy(img)
     r, g, b = arr[..., 0], arr[..., 1], arr[..., 2]
     maxc, minc = arr.max(axis=2), arr.min(axis=2)
     li = (maxc + minc) / 2.0
@@ -209,7 +211,8 @@ def _rgb_to_hsl(arr: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     return h, s, li
 
 
-def _hsl_to_rgb(h: np.ndarray, s: np.ndarray, li: np.ndarray) -> np.ndarray:
+@tool
+def hsl_to_rgb(h: np.ndarray, s: np.ndarray, li: np.ndarray) -> np.ndarray:
     """Vectorised HSL→RGB conversion.
 
     Args:
@@ -218,7 +221,7 @@ def _hsl_to_rgb(h: np.ndarray, s: np.ndarray, li: np.ndarray) -> np.ndarray:
         li (np.ndarray): Lightness channel `[0, 1]`.
 
     Returns:
-        np.ndarray: Reconstructed RGB array in `[0, 1]`.
+        PIL.Image.Image: 8‑bit RGB image.
     """
 
     def _f(n: float) -> np.ndarray:
@@ -227,7 +230,7 @@ def _hsl_to_rgb(h: np.ndarray, s: np.ndarray, li: np.ndarray) -> np.ndarray:
         return li - a * np.clip(np.minimum(np.minimum(k - 3.0, 9.0 - k), 1.0), -1.0, 1.0)
 
     r, g, b = _f(0.0), _f(8.0), _f(4.0)
-    return np.stack([r, g, b], axis=-1)
+    return _to_image(np.stack([r, g, b], axis=-1))
 
 
 # Hue centres and +/- half‑widths (degrees) taken from Adobe’s HSL model
@@ -260,51 +263,71 @@ def _range_for(color: ColorName) -> tuple[float, float]:
 
 
 @tool
-def adjust_hue_color(img: Image.Image, color: ColorName, delta: float) -> Image.Image:
+def adjust_hue_color(
+    h: np.ndarray, s: np.ndarray, li: np.ndarray, color: ColorName, delta: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Shift the **hue** of a specific colour bucket.
 
     Args:
-        img (PIL.Image.Image): Input RGB image.
+        h (np.ndarray): Hue channel `[0, 1]`.
+        s (np.ndarray): Saturation channel `[0, 1]`.
+        li (np.ndarray): Lightness channel `[0, 1]`.
         color (ColorName): Colour family to target [red, orange, yellow, green, aqua, blue, purple, magenta]
         delta (float): Hue shift *in degrees*. 15 degrees is good increment. 40 is a lot. 5 is a delicate modification .
 
+    Returns:
+        Tuple[np.ndarray, np.ndarray, np.ndarray]: Hue, Saturation, Lightness
+        arrays each in `[0, 1]` and shape *(H, W)*.
+
     """
-    return adjust_hsl_channel(img, _range_for(color), h_delta=delta)
+    return adjust_hsl_channel(h, s, li, _range_for(color), h_delta=delta)
 
 
 @tool
-def adjust_saturation_color(img: Image.Image, color: ColorName, factor: float) -> Image.Image:
+def adjust_saturation_color(
+    h: np.ndarray, s: np.ndarray, li: np.ndarray, color: ColorName, factor: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Change **saturation** of a specific colour bucket.
 
     Args:
-        img (PIL.Image.Image): Input image.
+        h (np.ndarray): Hue channel `[0, 1]`.
+        s (np.ndarray): Saturation channel `[0, 1]`.
+        li (np.ndarray): Lightness channel `[0, 1]`.
         color (ColorName): Colour family to target [red, orange, yellow, green, aqua, blue, purple, magenta]
-        factor (float): Saturation multiplier. Factor under +/- 0.1 are barely noticeable.
-            Factor of 1 are very strong variations.
+        factor (float): Saturation multiplier. Factor under +/- 0.1 are delicate modifications.
+            Factor of 0.5 are very strong variations.
 
     Returns:
-        PIL.Image.Image: Image with adjusted saturation for the selected colour.
+        Tuple[np.ndarray, np.ndarray, np.ndarray]: Hue, Saturation, Lightness
+        arrays each in `[0, 1]` and shape *(H, W)*.
     """
-    return adjust_hsl_channel(img, _range_for(color), s_factor=factor)
+    return adjust_hsl_channel(h, s, li, _range_for(color), s_factor=factor)
 
 
 @tool
-def adjust_luminance_color(img: Image.Image, color: ColorName, factor: float) -> Image.Image:
+def adjust_luminance_color(
+    h: np.ndarray, s: np.ndarray, li: np.ndarray, color: ColorName, factor: float
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Change **luminance** (Lightness) of a specific colour bucket.
 
     Args:
-        img (PIL.Image.Image): Input image.
+        h (np.ndarray): Hue channel `[0, 1]`.
+        s (np.ndarray): Saturation channel `[0, 1]`.
+        li (np.ndarray): Lightness channel `[0, 1]`.
         color (ColorName): Colour family to target[red, orange, yellow, green, aqua, blue, purple, magenta]
         factor (float): Luminance multiplier. A factor of 0.5 is a lot, 0.9 is a delicate modification .
 
     Returns:
-        PIL.Image.Image: Image with adjusted luminance for the selected colour.
+        Tuple[np.ndarray, np.ndarray, np.ndarray]: Hue, Saturation, Lightness
+        arrays each in `[0, 1]` and shape *(H, W)*.
     """
-    return adjust_hsl_channel(img, _range_for(color), l_factor=factor)
+    return adjust_hsl_channel(h, s, li, _range_for(color), l_factor=factor)
 
 
 def adjust_hsl_channel(
-    img: Image.Image,
+    h: np.ndarray,
+    s: np.ndarray,
+    li: np.ndarray,
     hue_range: tuple[float, float],
     h_delta: float = 0.0,
     s_factor: float = 1.0,
@@ -313,7 +336,9 @@ def adjust_hsl_channel(
     """Adjust Hue, Saturation, or Lightness for pixels within a hue slice.
 
     Args:
-        img (PIL.Image.Image): Input image.
+        h (np.ndarray): Hue channel `[0, 1]`.
+        s (np.ndarray): Saturation channel `[0, 1]`.
+        li (np.ndarray): Lightness channel `[0, 1]`.
         hue_range (Tuple[float, float]): Start and end hue in degrees `[0, 360)`.
             The range may wrap past 360° (e.g. `(350, 20)` selects reds).
         h_delta (float, optional): Hue shift in degrees. Defaults to `0.0`.
@@ -327,9 +352,6 @@ def adjust_hsl_channel(
         Typical 10 % tweaks: `h_delta ≈ ±10°`, `s_factor *= 1.10`,
         `l_factor *= 1.10` (or `0.90`).
     """
-    arr = _to_numpy(img)
-    h, s, li = _rgb_to_hsl(arr)
-
     h_start, h_end = np.deg2rad(hue_range[0]), np.deg2rad(hue_range[1])
     h_rad = h * 2 * math.pi
     if hue_range[0] <= hue_range[1]:
@@ -345,7 +367,7 @@ def adjust_hsl_channel(
     s_new[mask] = np.clip(s[mask] * s_factor, 0.0, 1.0)
     l_new[mask] = np.clip(li[mask] * l_factor, 0.0, 1.0)
 
-    return _to_image(_hsl_to_rgb(h_new, s_new, l_new))
+    return h_new, s_new, l_new
 
 
 # ---------------------------------------------------------------------------

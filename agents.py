@@ -29,7 +29,7 @@ SmolagentsInstrumentor().instrument(tracer_provider=trace_provider)
 HUGGING_FACE_TOKEN = os.environ["HUGGING_FACE_TOKEN"]
 
 image_operator_model = InferenceClientModel(
-    model_id="Qwen/Qwen3-32B", provider="nebius", token=HUGGING_FACE_TOKEN, max_tokens=5000
+    model_id="Qwen/Qwen3-14B", provider="nebius", token=HUGGING_FACE_TOKEN, max_tokens=5000
 )
 
 picture_operator_prompt = """
@@ -54,6 +54,8 @@ picture_operator_prompt = """
     Adjust parameters based on the critic’s feedback.
     Iterate until the critic responds with “just right” for all changes.
     Once all enhancements are satisfactory, your task is complete.
+    You must call to conversion function rgb_to_hsl and hsl_to_rgb only once for each.
+    You will be fined every time you exceed 1 call for each function.
     """
 
 picture_operator = CodeAgent(
@@ -72,6 +74,8 @@ picture_operator = CodeAgent(
         flt.save_image,
         flt.load_image,
         jdg.critic,
+        flt.rgb_to_hsl,
+        flt.hsl_to_rgb,
     ],
     model=image_operator_model,
     name="PictureOperator",
