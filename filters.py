@@ -87,7 +87,7 @@ def adjust_saturation(img: Image.Image, factor: float) -> Image.Image:
         img (PIL.Image.Image): Input image.
         factor (float): Saturation multiplier. Values > 1 intensify colour and
             values < 1 desaturate. `factor *= 1.10` (or `0.90`) yields a ± 10 % change.
-            a factor of 2 is a lot. a factor of 1.1 is a delicate modification .
+            a factor of 1.5 is a lot. a factor of 1.1 is a delicate modification .
 
     Returns:
         PIL.Image.Image: Saturation‑adjusted image.
